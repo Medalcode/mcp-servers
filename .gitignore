@@ -1,7 +1,9 @@
-.venv/
 __pycache__/
 *.pyc
-*.db
-.env
 *.egg-info/
-data/linkedin_credentials.json
+dist/
+build/
+.venv/
+venv/
+.env
+*.db
