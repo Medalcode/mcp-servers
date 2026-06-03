@@ -1,52 +1,75 @@
-# MCP Servers — GitHub + Filesystem
+# MCP Servers — Unified MCP Monorepo
 
+[![CI](https://github.com/Medalcode/mcp-servers/actions/workflows/ci.yml/badge.svg)](https://github.com/Medalcode/mcp-servers/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue.svg)]()
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-Two lightweight MCP servers for GitHub API access and local filesystem operations.
+Monorepo unificado con 6 servidores MCP (Model Context Protocol): Browser automation, AI Router, Web Scraping, Document Processing, LinkedIn, y Career Automation (Pathwise).
 
 ## Servers
 
-### GitHub Server (`github_server.py`)
-
-Provides GitHub API tools: search repos, get repo details, list issues, read files, create issues, list PRs, list commits.
-
-**Required env var:** `GITHUB_TOKEN`
-
-### Filesystem Server (`filesystem_server.py`)
-
-Provides filesystem tools: read, write, list directory, file info, search files, delete.
-
-**Required env var:** `ALLOWED_PATH` — root directory to restrict access to (no default for security)
+| Server | Entry Point | Description |
+|---|---|---|
+| **BrowserMCP** | `servers.browser` | Automatización de navegador. Triple motor: Selenium, Playwright, estático |
+| **RouteMCP** | `servers.route` | Router de IA multi-provider: Gemini, Groq, Cerebras con failover |
+| **ScrapeMCP** | `servers.scrape` | Web scraping estructurado con protección SSRF |
+| **DocMCP** | `servers.doc` | Manipulación de PDFs: leer, mergear, dividir, comprimir, generar |
+| **LinkedInMCP** | `servers.linkedin` | Búsqueda y aplicación automatizada en LinkedIn |
+| **Pathwise** | `servers.pathwise` | Plataforma de carrera con perfiles, CV, cover letters |
 
 ## Quick Start
 
 ```bash
-# GitHub server
-export GITHUB_TOKEN="ghp_..."
-python github_server.py
+# Instalar
+pip install mcp-servers
 
-# Filesystem server
-export ALLOWED_PATH=/home/user/allowed
-python filesystem_server.py
+# Ejecutar cualquier servidor
+browsermcp    # Browser automation
+routemcp      # AI Router
+scrapemcp     # Web scraping
+docmcp        # Document processing
+linkedinmcp   # LinkedIn automation
+pathwise      # Career platform
+```
+
+## Install from source
+
+```bash
+git clone https://github.com/Medalcode/mcp-servers.git
+cd mcp-servers
+pip install -e .
 ```
 
 ## Tech Stack
 
 - **Python** — `>=3.11`
-- **Framework**: `mcp` (FastMCP) via stdio
-- **GitHub**: `PyGithub`
-- **Filesystem**: `pathlib` (stdlib)
+- **Framework**: `mcp` (FastMCP) via stdio JSON-RPC
+- **Engines**: Selenium, Playwright, BeautifulSoup, httpx
+- **AI Providers**: Google Gemini, Groq, Cerebras
+- **PDF**: PyMuPDF, ReportLab, pypdf
 
-## 🔧 Recent Improvements
+## Project Structure
 
-- **Path Traversal Fixed** — `filesystem_server.py`: trailing-slash prefix check prevents bypasses
-- **`ALLOWED_PATH` Now Required** — No default (was `/home/medalcode`), must be explicitly set
-- **Size Limits** — Read: 100MB max, Write: 10MB max
-- **`delete_file` Error Handling** — Handles non-empty directories, false-positive messages fixed
-- **GitHub Error Handling** — All tools wrapped in try/except; rate limits and network errors caught
-- **Binary File Support** — `get_file_content` gracefully handles non-UTF-8 content
-- **`limit` Bounded** — All list tools enforce max 100 results
-- **Token Validation** — GitHub token verified at startup
-- **Logging** — All tool calls logged at INFO level
-- **`search_files` Max Depth** — Prevents deep recursion with `max_depth=5`
+```
+mcp-servers/
+├── servers/           # Server entry points (browser, route, scrape, doc, linkedin, pathwise)
+│   ├── browser.py
+│   ├── route.py
+│   ├── scrape.py
+│   ├── doc.py
+│   ├── linkedin.py
+│   └── pathwise.py
+├── engines/           # Browser engines (selenium, playwright, static)
+├── router/            # AI Router engine + providers
+├── scrapers/          # Web scrapers + exporters
+├── docmcp/            # PDF processing
+├── database/          # SQLite persistence
+├── tools/             # MCP tool definitions
+├── services/          # Business logic services
+├── pyproject.toml
+└── README.md
+```
+
+## License
+
+MIT
