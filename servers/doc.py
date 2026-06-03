@@ -173,7 +173,11 @@ def generate_text(text: str, output: str, title: str = "") -> str:
 
 
 def main():
-    mcp.run(transport="stdio")
+    transport = os.environ.get("MCP_TRANSPORT", "stdio")
+    if transport == "sse":
+        mcp.run(transport="sse", host=os.environ.get("MCP_HOST", "0.0.0.0"), port=int(os.environ.get("MCP_PORT", "8080")))
+    else:
+        mcp.run(transport="stdio")
 
 
 if __name__ == "__main__":
