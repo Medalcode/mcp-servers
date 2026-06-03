@@ -1,8 +1,28 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
 [project]
 name = "mcp-servers"
 version = "1.0.0"
 description = "Unified MCP servers monorepo: Browser, Route, Scrape, Doc, LinkedIn, Pathwise"
+readme = "README.md"
+license = {text = "MIT"}
 requires-python = ">=3.11"
+authors = [
+    {name = "Jonatthan Medalla", email = "152304407+Medalcode@users.noreply.github.com"},
+]
+keywords = ["mcp", "model-context-protocol", "browser-automation", "ai-router", "web-scraping", "pdf"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development",
+]
 dependencies = [
     "mcp[cli]>=1.6.0",
     "httpx>=0.27.0",
@@ -13,10 +33,14 @@ dependencies = [
     "pymupdf>=1.23.0",
     "reportlab>=4.0.0",
     "pypdf>=4.0.0",
-    "pypdf2>=3.0.0",
     "html5lib>=1.1",
     "python-dotenv>=1.0.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/Medalcode/mcp-servers"
+Repository = "https://github.com/Medalcode/mcp-servers"
+"Bug Tracker" = "https://github.com/Medalcode/mcp-servers/issues"
 
 [project.scripts]
 browsermcp = "servers.browser:main"
@@ -26,15 +50,8 @@ docmcp = "servers.doc:main"
 linkedinmcp = "servers.linkedin:main"
 pathwise = "servers.pathwise:main"
 
-[tool.setuptools]
-packages = [
-    "servers", "engines", "router", "router.providers",
-    "scrapers", "docmcp", "database", "database.repos",
-    "tools", "services", "services.scrapers",
-]
+[tool.hatch.build.targets.wheel]
+packages = ["servers", "engines", "router", "router.providers", "scrapers", "docmcp", "database", "database.repos", "tools", "services", "services.scrapers"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
-
-[project.urls]
-Source = "https://github.com/medalcode/mcp-servers"

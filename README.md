@@ -1,49 +1,70 @@
-# MCP Servers — GitHub + Filesystem
+# MCP Servers — Unified MCP Monorepo
 
-Two lightweight MCP servers for GitHub API access and local filesystem operations.
+[![Python](https://img.shields.io/badge/python-3.11%2B-blue.svg)]()
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+
+Monorepo unificado con 6 servidores MCP (Model Context Protocol).
 
 ## Servers
 
-### GitHub Server (`github_server.py`)
+| Server | CLI | Description |
+|---|---|---|
+| **BrowserMCP** | `browsermcp` | Automatización de navegador con triple motor (Selenium, Playwright, estático) |
+| **RouteMCP** | `routemcp` | Router de IA multi-provider (Gemini, Groq, Cerebras) con failover |
+| **ScrapeMCP** | `scrapemcp` | Web scraping estructurado con protección SSRF |
+| **DocMCP** | `docmcp` | Manipulación de PDFs: leer, mergear, dividir, comprimir, generar |
+| **LinkedInMCP** | `linkedinmcp` | Búsqueda y aplicación en LinkedIn |
+| **Pathwise** | `pathwise` | Plataforma de carrera con perfiles, CV, cover letters |
+| **GitHub** | `python github_server.py` | API de GitHub: repos, issues, PRs |
+| **Filesystem** | `python filesystem_server.py` | Operaciones de archivos locales |
 
-Provides GitHub API tools: search repos, get repo details, list issues, read files, create issues, list PRs, list commits.
+## Install
 
-**Required env var:** `GITHUB_TOKEN`
-
-### Filesystem Server (`filesystem_server.py`)
-
-Provides filesystem tools: read, write, list directory, file info, search files, delete.
-
-**Required env var:** `ALLOWED_PATH` — root directory to restrict access to (no default for security)
+```bash
+pip install mcp-servers
+```
 
 ## Quick Start
 
 ```bash
-# GitHub server
-export GITHUB_TOKEN="ghp_..."
-python github_server.py
+# Todos los servidores se instalan como comandos CLI:
+browsermcp      # Browser automation
+routemcp        # AI Router
+scrapemcp       # Web scraping
+docmcp          # Document processing
+linkedinmcp     # LinkedIn automation
+pathwise        # Career platform
 
-# Filesystem server
-export ALLOWED_PATH=/home/user/allowed
+# GitHub y Filesystem se ejecutan directamente:
+python github_server.py
 python filesystem_server.py
 ```
 
 ## Tech Stack
 
-- **Python** — `>=3.11`
-- **Framework**: `mcp` (FastMCP) via stdio
-- **GitHub**: `PyGithub`
-- **Filesystem**: `pathlib` (stdlib)
+- **Python** `>=3.11`
+- **Framework**: `mcp` (FastMCP) via stdio JSON-RPC
+- **Engines**: Selenium, Playwright, BeautifulSoup, httpx
+- **AI Providers**: Google Gemini, Groq, Cerebras
+- **PDF**: PyMuPDF, ReportLab, pypdf
 
-## 🔧 Recent Improvements
+## Project Structure
 
-- **Path Traversal Fixed** — `filesystem_server.py`: trailing-slash prefix check prevents bypasses
-- **`ALLOWED_PATH` Now Required** — No default (was `/home/medalcode`), must be explicitly set
-- **Size Limits** — Read: 100MB max, Write: 10MB max
-- **`delete_file` Error Handling** — Handles non-empty directories, false-positive messages fixed
-- **GitHub Error Handling** — All tools wrapped in try/except; rate limits and network errors caught
-- **Binary File Support** — `get_file_content` gracefully handles non-UTF-8 content
-- **`limit` Bounded** — All list tools enforce max 100 results
-- **Token Validation** — GitHub token verified at startup
-- **Logging** — All tool calls logged at INFO level
-- **`search_files` Max Depth** — Prevents deep recursion with `max_depth=5`
+```
+mcp-servers/
+├── servers/            # Entry points (browser, route, scrape, doc, linkedin, pathwise)
+├── engines/            # Browser engines
+├── router/             # AI Router + providers
+├── scrapers/           # Web scrapers
+├── docmcp/             # PDF processing
+├── database/           # SQLite persistence
+├── tools/              # MCP tool definitions
+├── services/           # Business logic
+├── github_server.py    # GitHub API server
+├── filesystem_server.py
+└── pyproject.toml
+```
+
+## License
+
+MIT
