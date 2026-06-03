@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "mcp-servers"
+name = "medalcode-mcp-servers"
 version = "1.0.0"
 description = "Unified MCP servers monorepo: Browser, Route, Scrape, Doc, LinkedIn, Pathwise"
 readme = "README.md"
