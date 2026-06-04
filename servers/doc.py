@@ -17,6 +17,7 @@ reader = PDFReader()
 manip = PDFManipulator()
 gen = PDFGenerator()
 workdir = os.environ.get("DOCMCP_WORKDIR", os.path.expanduser("~"))
+MAX_DOC_SIZE_MB = int(os.environ.get("DOCMCP_MAX_SIZE_MB", "200"))
 
 
 def _resolve(path: str) -> str:
@@ -32,27 +33,47 @@ def _resolve(path: str) -> str:
     return str(full)
 
 
+def _validate_doc_path(path: str) -> str:
+    resolved = _resolve(path)
+    if not os.path.isfile(resolved):
+        raise ValueError(f"File not found: {path}")
+    size_mb = os.path.getsize(resolved) / (1024 * 1024)
+    if size_mb > MAX_DOC_SIZE_MB:
+        raise ValueError(f"File too large: {size_mb:.0f}MB (max {MAX_DOC_SIZE_MB}MB)")
+    return resolved
+
+
+def _safe_resolve_output(output: str) -> str:
+    out = _resolve(output)
+    parent = Path(out).parent
+    parent.mkdir(parents=True, exist_ok=True)
+    return out
+
+
 @mcp.tool()
-def read(path: str) -> str:
+def read(path: str, max_chars: int = 5000) -> str:
     try:
-        data = reader.read(_resolve(path))
+        data = reader.read(_validate_doc_path(path))
     except ValueError as e:
         return str(e)
     if "error" in data:
         return data["error"]
-    text = data["text"][:5000]
+    snippet = data["text"][:max_chars] if max_chars else data["text"]
+    truncated = ""
+    if max_chars and len(data["text"]) > max_chars:
+        truncated = f"\n[Truncated: showing {max_chars} of {len(data['text'])} chars]"
     result = f"""File: {data['file']}
 Pages: {data['pages']}
 Metadata: {json.dumps(data['metadata'], indent=2)}
----Content (first 5000 chars)---
-{text}"""
+---Content{truncated}---
+{snippet}"""
     return result
 
 
 @mcp.tool()
 def info(path: str) -> str:
     try:
-        data = reader.info(_resolve(path))
+        data = reader.info(_validate_doc_path(path))
     except ValueError as e:
         return str(e)
     if "error" in data:
@@ -64,7 +85,7 @@ def info(path: str) -> str:
 def extract_images(path: str, output_dir: str = "") -> str:
     try:
         resolved_out = _resolve(output_dir) if output_dir else ""
-        data = reader.extract_images(_resolve(path), resolved_out)
+        data = reader.extract_images(_validate_doc_path(path), resolved_out)
     except ValueError as e:
         return str(e)
     if "error" in data:
@@ -75,9 +96,9 @@ def extract_images(path: str, output_dir: str = "") -> str:
 @mcp.tool()
 def to_markdown(path: str, output: str = "") -> str:
     try:
-        data = reader.to_markdown(_resolve(path))
+        data = reader.to_markdown(_validate_doc_path(path))
         if output:
-            out_path = _resolve(output)
+            out_path = _safe_resolve_output(output)
             Path(out_path).write_text(data, encoding="utf-8")
             return f"Converted to {output}"
         return data
@@ -92,8 +113,8 @@ def merge(paths: str, output: str) -> str:
             path_list = [p.strip() for p in paths.split("\n") if p.strip()]
         else:
             path_list = [p.strip() for p in paths.split(",")]
-        resolved_paths = [_resolve(p) for p in path_list]
-        resolved_out = _resolve(output)
+        resolved_paths = [_validate_doc_path(p) for p in path_list]
+        resolved_out = _safe_resolve_output(output)
     except ValueError as e:
         return str(e)
     result = manip.merge(resolved_paths, resolved_out)
@@ -106,7 +127,7 @@ def merge(paths: str, output: str) -> str:
 def split(path: str, output_dir: str = "") -> str:
     try:
         resolved_out = _resolve(output_dir) if output_dir else ""
-        result = manip.split(_resolve(path), resolved_out)
+        result = manip.split(_validate_doc_path(path), resolved_out)
     except ValueError as e:
         return str(e)
     if "error" in result:
@@ -117,7 +138,7 @@ def split(path: str, output_dir: str = "") -> str:
 @mcp.tool()
 def extract_pages(path: str, pages: str, output: str) -> str:
     try:
-        result = manip.extract_pages(_resolve(path), pages, _resolve(output))
+        result = manip.extract_pages(_validate_doc_path(path), pages, _safe_resolve_output(output))
     except ValueError as e:
         return str(e)
     if "error" in result:
@@ -128,7 +149,7 @@ def extract_pages(path: str, pages: str, output: str) -> str:
 @mcp.tool()
 def compress(path: str, output: str) -> str:
     try:
-        result = manip.compress(_resolve(path), _resolve(output))
+        result = manip.compress(_validate_doc_path(path), _safe_resolve_output(output))
     except ValueError as e:
         return str(e)
     if "error" in result:
@@ -139,7 +160,7 @@ def compress(path: str, output: str) -> str:
 @mcp.tool()
 def generate_report(title: str, content: str, output: str) -> str:
     try:
-        result = gen.report(title, content, _resolve(output))
+        result = gen.report(title, content, _safe_resolve_output(output))
     except ValueError as e:
         return str(e)
     if "error" in result:
@@ -155,7 +176,12 @@ def generate_table(title: str, headers: str, rows: str, output: str) -> str:
             row_data = json.loads(rows)
         except json.JSONDecodeError as e:
             return f"Invalid JSON for rows: {e}"
-        gen.table_report(title, header_list, row_data, _resolve(output))
+        if not isinstance(row_data, list):
+            return "Error: rows must be a JSON array"
+        for item in row_data:
+            if not isinstance(item, (list, dict)):
+                return "Error: each row must be a JSON object or array"
+        gen.table_report(title, header_list, row_data, _safe_resolve_output(output))
         return f"Generated: {output}"
     except ValueError as e:
         return str(e)
@@ -164,7 +190,7 @@ def generate_table(title: str, headers: str, rows: str, output: str) -> str:
 @mcp.tool()
 def generate_text(text: str, output: str, title: str = "") -> str:
     try:
-        result = gen.text_to_pdf(text, _resolve(output), title)
+        result = gen.text_to_pdf(text, _safe_resolve_output(output), title)
     except ValueError as e:
         return str(e)
     if "error" in result:

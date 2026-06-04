@@ -33,8 +33,9 @@ dependencies = [
     "pymupdf>=1.23.0",
     "reportlab>=4.0.0",
     "pypdf>=4.0.0",
-    "html5lib>=1.1",
+    "pypdf2>=3.0.0",
     "python-dotenv>=1.0.0",
+    "bcrypt>=4.0.0",
 ]
 
 [project.urls]

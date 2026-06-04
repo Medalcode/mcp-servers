@@ -27,7 +27,7 @@ class SitemapScraper(BaseScraper):
             if not sitemap_url:
                 sitemap_url = base + "/sitemap.xml"
 
-            resp = await self._session.get(sitemap_url)
+            resp = await self._session.get(sitemap_url, follow_redirects=True)
             resp.raise_for_status()
 
             try:

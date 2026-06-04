@@ -202,15 +202,16 @@ class SeleniumEngine(BrowserEngine):
                     try:
                         inp_id = inp.get_attribute("id")
                         if inp_id:
-                            escaped_id = inp_id.replace("'", "', \"'\", '")
-                            for tag in ["label", "div", "span"]:
-                                try:
-                                    label_el = self._driver.find_element(By.XPATH, f"//{tag}[@for=concat('{escaped_id}')]")
-                                    label = label_el.text.strip()
-                                    if label:
-                                        break
-                                except NoSuchElementException:
-                                    continue
+                            label = self._driver.execute_script("""
+                                var id = arguments[0];
+                                var el = document.querySelector('label[for="' + CSS.escape(id) + '"]');
+                                if (!el) el = document.querySelector('[id="' + CSS.escape(id) + '"]');
+                                if (!el) {
+                                    var div = document.querySelector('[class*="field"]');
+                                    if (div) el = div.previousElementSibling;
+                                }
+                                return el ? el.textContent.trim() : '';
+                            """, inp_id)
                     except WebDriverException:
                         pass
                     if not label:

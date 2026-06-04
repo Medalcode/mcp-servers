@@ -105,7 +105,7 @@ class BaseScraper:
         self._session.headers["User-Agent"] = random.choice(USER_AGENTS)
         resp = await self._session.get(url, follow_redirects=True)
         resp.raise_for_status()
-        return BeautifulSoup(resp.content, "html5lib"), str(resp.url)
+        return BeautifulSoup(resp.content, "lxml"), str(resp.url)
 
     async def close(self):
         await self._session.aclose()

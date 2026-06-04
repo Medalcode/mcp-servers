@@ -1,9 +1,15 @@
-import hashlib
 import logging
 import os
 import sqlite3
 from contextvars import ContextVar
 from pathlib import Path
+
+try:
+    import bcrypt
+    HAS_BCRYPT = True
+except ImportError:
+    HAS_BCRYPT = False
+
 from database.config import DB_PATH
 
 logger = logging.getLogger(__name__)
@@ -85,13 +91,15 @@ def init_db():
             profile_id INTEGER,
             job_title TEXT NOT NULL,
             company TEXT NOT NULL,
-            status TEXT DEFAULT 'to_apply',
+            status TEXT DEFAULT 'to_apply'
+                CHECK(status IN ('to_apply','applied','interview','offer','rejected')),
             url TEXT,
             salary_range TEXT,
             location TEXT,
             applied_date DATETIME DEFAULT CURRENT_TIMESTAMP,
             notes TEXT,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
             FOREIGN KEY (profile_id) REFERENCES profiles(id) ON DELETE SET NULL
         );
@@ -105,7 +113,7 @@ def init_db():
             description TEXT,
             culture TEXT,
             tech_stack TEXT,
-            glassdoor_rating REAL,
+            glassdoor_rating REAL CHECK(glassdoor_rating BETWEEN 0 AND 5),
             linkedin_url TEXT,
             careers_url TEXT,
             notes TEXT,
@@ -152,6 +160,9 @@ def init_db():
         CREATE INDEX IF NOT EXISTS idx_applications_created ON applications(created_at);
         CREATE INDEX IF NOT EXISTS idx_companies_name ON companies(name);
         CREATE INDEX IF NOT EXISTS idx_interview_questions_company ON interview_questions(company);
+        CREATE INDEX IF NOT EXISTS idx_profiles_user_id ON profiles(user_id);
+        CREATE INDEX IF NOT EXISTS idx_interview_questions_app ON interview_questions(application_id);
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_skills_profile_name ON skills(profile_id, name);
     """)
     conn.commit()
 
@@ -198,9 +209,18 @@ def init_db():
 
     cur = conn.execute("SELECT COUNT(*) FROM users")
     if cur.fetchone()[0] == 0:
-        _hash = hashlib.sha256(os.environ.get("PATHWISE_ADMIN_PASSWORD", "mcp-managed").encode()).hexdigest()
+        admin_pass = os.environ.get("PATHWISE_ADMIN_PASSWORD")
+        if not admin_pass:
+            raise RuntimeError(
+                "PATHWISE_ADMIN_PASSWORD environment variable must be set on first run"
+            )
+        if HAS_BCRYPT:
+            pw_hash = bcrypt.hashpw(admin_pass.encode(), bcrypt.gensalt()).decode()
+        else:
+            pw_hash = admin_pass
+            logger.warning("bcrypt not available, storing admin password insecurely")
         conn.execute("INSERT INTO users (email, password_hash) VALUES (?, ?)",
-                     ("admin@pathwise.local", _hash))
+                     ("admin@pathwise.local", pw_hash))
         conn.commit()
 
     cur = conn.execute("SELECT COUNT(*) FROM profiles")

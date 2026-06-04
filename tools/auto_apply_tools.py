@@ -19,15 +19,11 @@ from urllib.parse import urlparse
 
 logger = logging.getLogger(__name__)
 
-def _get_browser_mcp_path() -> str:
-    path = os.getenv("PATHWISE_BROWSERMCP_PATH", "")
-    if not path:
-        raise RuntimeError("PATHWISE_BROWSERMCP_PATH environment variable is required for browser tools")
-    return path
+_MCP_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 _browser_proc = None
 _browser_proc_lock = asyncio.Lock()
-_next_req_id = 1
+_next_req_id = 100
 _req_id_lock = asyncio.Lock()
 
 
@@ -75,22 +71,16 @@ async def _ensure_browser_proc():
     global _browser_proc
     async with _browser_proc_lock:
         if _browser_proc is None or _browser_proc.returncode is not None:
-            browser_path = _get_browser_mcp_path()
-            browser_python = os.path.join(browser_path, ".venv", "bin", "python")
-            if not os.path.isfile(browser_python):
-                browser_python = sys.executable
             env = {**os.environ, "BROWSER_ENGINE": "selenium", "CHROME_DEBUG_PORT": "9226"}
             _browser_proc = await asyncio.create_subprocess_exec(
-                browser_python, f"{browser_path}/server.py",
+                sys.executable, "-m", "servers.browser",
                 stdin=asyncio.subprocess.PIPE,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
-                cwd=browser_path,
+                cwd=_MCP_DIR,
                 env=env,
             )
-            # Consume stderr to prevent pipe deadlock
             asyncio.ensure_future(_consume_stderr(_browser_proc))
-            # Send init request, wait for response, then send initialized
             init_req = json.dumps({"jsonrpc": "2.0", "id": 1, "method": "initialize",
                                    "params": {"protocolVersion": "2024-11-05", "capabilities": {},
                                               "clientInfo": {"name": "pathwise", "version": "1.0"}}}) + "\n"
@@ -606,7 +596,8 @@ def register_tools(mcp: FastMCP):
             results.append(f"  {title[:45]:45s} {status}")
 
         success_count = sum(1 for r in results if "APPLIED" in r)
-        return f"=== BATCH APPLY RESULTS ===\n{chr(10).join(results)}\n\n{success_count}/{len(urls)} exitosas."
+        return f"=== BATCH APPLY RESULTS ===\n" + "\n".join(results) + f"\n\n{success_count}/{len(urls)} exitosas."
+
 
     @mcp.tool()
     async def browser_health_check() -> str:

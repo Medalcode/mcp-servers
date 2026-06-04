@@ -80,26 +80,69 @@ _PRIVATE_BLOCKS = [
 _BLOCKED_HOSTNAMES = {"localhost", "127.0.0.1", "::1", "0.0.0.0", "metadata.google.internal", "169.254.169.254"}
 
 
+def _is_private_hostname(hostname: str) -> bool:
+    if not hostname:
+        return False
+    try:
+        old_timeout = socket.getdefaulttimeout()
+        socket.setdefaulttimeout(5)
+        try:
+            addrinfo = socket.getaddrinfo(hostname, None)
+        finally:
+            socket.setdefaulttimeout(old_timeout)
+        for _, _, _, _, sockaddr in addrinfo:
+            ip_str = sockaddr[0]
+            addr = ipaddress.ip_address(ip_str)
+            for block in _PRIVATE_BLOCKS:
+                if addr in block:
+                    return True
+    except (socket.gaierror, OSError):
+        pass
+    return False
+
+
 def _validate_url(url: str) -> None:
     parsed = urlparse(url)
-    if parsed.scheme not in ("http", "https", "about"):
+    if parsed.scheme not in ("http", "https"):
         raise ValueError(f"Scheme '{parsed.scheme}' not allowed (only http/https)")
     hostname = parsed.hostname or ""
     if hostname.lower() in _BLOCKED_HOSTNAMES:
         raise ValueError(f"Blocked hostname: {hostname}")
     if re.search(r"\.internal$|\.local$|\.localhost$|\.test$", hostname.lower()):
         raise ValueError(f"Blocked domain: {hostname}")
-    if hostname:
-        try:
-            addrinfo = socket.getaddrinfo(hostname, None)
-            for _, _, _, _, sockaddr in addrinfo:
-                ip_str = sockaddr[0]
-                addr = ipaddress.ip_address(ip_str)
-                for block in _PRIVATE_BLOCKS:
-                    if addr in block:
-                        raise ValueError(f"Blocked IP range: {ip_str}")
-        except socket.gaierror:
-            pass
+    if hostname and _is_private_hostname(hostname):
+        raise ValueError(f"Blocked private IP range for hostname: {hostname}")
+
+
+def _validate_final_url(result) -> str | None:
+    if not result or not result.url:
+        return None
+    parsed = urlparse(result.url)
+    hostname = parsed.hostname or ""
+    if hostname.lower() in _BLOCKED_HOSTNAMES:
+        return f"Navigation redirected to blocked hostname: {hostname}"
+    if hostname and _is_private_hostname(hostname):
+        return f"Navigation redirected to private IP: {hostname}"
+    return None
+
+
+_BLOCKED_JS_PATTERNS = [
+    r"\bfetch\s*\(",
+    r"\bXMLHttpRequest\b",
+    r"\bWebSocket\b",
+    r"\bFileReader\b",
+    r"\bimportScripts\b",
+    r"\bWorker\b",
+    r"\bnavigator\.sendBeacon\b",
+    r"\bdocument\.write\b",
+    r"\bdocument\.open\b",
+]
+
+
+def _validate_script(script: str) -> None:
+    for pattern in _BLOCKED_JS_PATTERNS:
+        if re.search(pattern, script):
+            raise ValueError(f"Script blocked: contains dangerous API")
 
 
 def _engine_prefix(engine) -> str:
@@ -116,6 +159,9 @@ def navigate(url: str) -> str:
     result = engine.navigate(url)
     if result.error:
         return f"{_engine_prefix(engine)}Error: {result.error}"
+    redirect_error = _validate_final_url(result)
+    if redirect_error:
+        return f"{_engine_prefix(engine)}{redirect_error}"
     return (
         f"{_engine_prefix(engine)}Title: {result.title}\n"
         f"URL: {result.url}\n"
@@ -172,8 +218,8 @@ def screenshot() -> str:
         return f"{_engine_prefix(engine)}Screenshot not available with current engine"
     max_bytes = int(os.environ.get("BROWSER_SCREENSHOT_MAX_BYTES", "5242880"))
     if len(data) > max_bytes:
-        logger.warning("Screenshot too large (%d bytes), truncating", len(data))
-        data = data[:max_bytes]
+        logger.warning("Screenshot too large (%d bytes), resizing not supported, returning error", len(data))
+        return f"{_engine_prefix(engine)}Screenshot too large ({len(data)} bytes, max {max_bytes})"
     b64 = base64.b64encode(data).decode()
     return f"data:image/png;base64,{b64}"
 
@@ -194,6 +240,10 @@ def click_by_text(text: str) -> str:
 
 @mcp.tool()
 def run_script(script: str) -> str:
+    try:
+        _validate_script(script)
+    except ValueError as e:
+        return f"{_engine_prefix(_ensure_engine())}Script blocked: {e}"
     engine = get_engine()
     result = engine.run_script(script)
     return f"{_engine_prefix(engine)}{result}"

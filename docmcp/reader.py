@@ -9,11 +9,24 @@ logger = logging.getLogger("docmcp.reader")
 MAX_PAGES = int(os.environ.get("DOCMCP_MAX_PAGES", "100"))
 
 
+def _safe_open(path: str) -> fitz.Document:
+    try:
+        doc = fitz.open(path)
+    except fitz.FileDataError as e:
+        if "encrypted" in str(e).lower() or "password" in str(e).lower():
+            raise ValueError(f"Cannot open encrypted PDF: {path}. Password-protected PDFs are not supported.")
+        raise ValueError(f"Cannot open PDF: {e}")
+    return doc
+
+
 class PDFReader:
     def read(self, path: str, max_pages: int = MAX_PAGES) -> dict:
         if not os.path.isfile(path):
             return {"error": f"File not found: {path}"}
-        doc = fitz.open(path)
+        try:
+            doc = _safe_open(path)
+        except ValueError as e:
+            return {"error": str(e)}
         total_pages = len(doc)
         result = {
             "file": os.path.basename(path),
@@ -27,12 +40,12 @@ class PDFReader:
         meta = doc.metadata
         if meta:
             result["metadata"] = {
-                "title": meta.get("title", ""),
-                "author": meta.get("author", ""),
-                "subject": meta.get("subject", ""),
-                "keywords": meta.get("keywords", ""),
-                "producer": meta.get("producer", ""),
-                "creator": meta.get("creator", ""),
+                "title": (meta.get("title", "") or "")[:500],
+                "author": (meta.get("author", "") or "")[:200],
+                "subject": (meta.get("subject", "") or "")[:500],
+                "keywords": (meta.get("keywords", "") or "")[:1000],
+                "producer": (meta.get("producer", "") or "")[:200],
+                "creator": (meta.get("creator", "") or "")[:200],
             }
         pages_to_read = min(total_pages, max_pages)
         if total_pages > max_pages:
@@ -51,7 +64,10 @@ class PDFReader:
     def info(self, path: str) -> dict:
         if not os.path.isfile(path):
             return {"error": f"File not found: {path}"}
-        doc = fitz.open(path)
+        try:
+            doc = _safe_open(path)
+        except ValueError as e:
+            return {"error": str(e)}
         meta = doc.metadata
         info = {
             "file": os.path.basename(path),
@@ -63,11 +79,11 @@ class PDFReader:
             "image_count": 0,
         }
         if meta:
-            info["title"] = meta.get("title", "")
-            info["author"] = meta.get("author", "")
-            info["subject"] = meta.get("subject", "")
-            info["producer"] = meta.get("producer", "")
-            info["creator"] = meta.get("creator", "")
+            info["title"] = (meta.get("title", "") or "")[:500]
+            info["author"] = (meta.get("author", "") or "")[:200]
+            info["subject"] = (meta.get("subject", "") or "")[:500]
+            info["producer"] = (meta.get("producer", "") or "")[:200]
+            info["creator"] = (meta.get("creator", "") or "")[:200]
         image_count = 0
         for page_num in range(len(doc)):
             page = doc[page_num]
@@ -80,7 +96,10 @@ class PDFReader:
     def extract_images(self, path: str, output_dir: str = "") -> dict:
         if not os.path.isfile(path):
             return {"error": f"File not found: {path}"}
-        doc = fitz.open(path)
+        try:
+            doc = _safe_open(path)
+        except ValueError as e:
+            return {"error": str(e)}
         if not output_dir:
             output_dir = os.path.dirname(path) or "."
         os.makedirs(output_dir, exist_ok=True)
@@ -92,6 +111,9 @@ class PDFReader:
                 base_image = doc.extract_image(xref)
                 image_bytes = base_image["image"]
                 ext = base_image["ext"]
+                if len(image_bytes) > 50 * 1024 * 1024:
+                    logger.warning("Skipping image %d on page %d: too large (%d bytes)", img_idx + 1, page_num + 1, len(image_bytes))
+                    continue
                 name = f"page{page_num + 1}_img{img_idx + 1}.{ext}"
                 img_path = os.path.join(output_dir, name)
                 with open(img_path, "wb") as f:

@@ -34,11 +34,21 @@ async def parse_pdf(file_path: str) -> dict:
 
     text = ""
     if HAS_PYMUPDF:
-        doc = fitz.open(str(path))
+        try:
+            doc = fitz.open(str(path))
+        except fitz.FileDataError as e:
+            if "encrypted" in str(e).lower() or "password" in str(e).lower():
+                raise ValueError("Cannot open encrypted/password-protected PDF")
+            raise
         text = "\n".join(page.get_text() for page in doc)
         doc.close()
     elif HAS_PYPDF2:
-        reader = PdfReader(str(path))
+        try:
+            reader = PdfReader(str(path))
+        except Exception as e:
+            if "encrypted" in str(e).lower() or "password" in str(e).lower():
+                raise ValueError("Cannot open encrypted/password-protected PDF")
+            raise
         text = "\n".join(page.extract_text() or "" for page in reader.pages)
     else:
         raise RuntimeError("No PDF library available. Install pymupdf or pypdf2.")

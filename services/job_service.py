@@ -68,6 +68,7 @@ async def search_jobs_with_ai(query: str, profile: dict, location: str = "Chile"
         f"{e['title']} en {e['company']}" for e in profile.get("experience", [])[:3]
     )
 
+    job_lines = "\n".join(f'{i+1}. {j["title"]} @ {j["company"]} - {j.get("description","")[:200]}' for i, j in enumerate(jobs[:15]))
     prompt = f"""Eres un reclutador experto. Analiza estas ofertas de trabajo y el perfil del candidato, y asigna un puntaje de compatibilidad (0-100) a cada oferta basado en qué tan bien calza con el candidato.
 
 PERFIL DEL CANDIDATO:
@@ -77,7 +78,7 @@ PERFIL DEL CANDIDATO:
 - Resumen: {pi.get('summary', '')}
 
 OFERTAS:
-{chr(10).join(f'{i+1}. {j["title"]} @ {j["company"]} - {j.get("description","")[:200]}' for i, j in enumerate(jobs[:15]))}
+{job_lines}
 
 Responde ÚNICAMENTE con un array JSON donde cada elemento tiene: {{"index": int, "score": int (0-100), "reason": str}}
 
