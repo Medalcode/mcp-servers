@@ -5,12 +5,13 @@ import os
 import random
 import time
 from dataclasses import dataclass, field
-from typing import Optional
+
 
 from services.scrapers import (
     scan_chiletrabajos, scan_computrabajo,
     scan_getonboard, scan_remoteok,
     scan_laborum, scan_firstjob,
+    scan_indeed, scan_trabajando,
 )
 
 logger = logging.getLogger(__name__)
@@ -21,7 +22,7 @@ class ScraperResult:
     source: str
     success: bool
     jobs: list = field(default_factory=list)
-    error: Optional[str] = None
+    error: str | None = None
     duration: float = 0.0
     fallback_used: bool = False
     retries: int = 0
@@ -34,6 +35,8 @@ DEDICATED_SCRAPERS = [
     ("GetOnBoard", scan_getonboard),
     ("RemoteOK", scan_remoteok),
     ("FirstJob", scan_firstjob),
+    ("Indeed", scan_indeed),
+    ("Trabajando", scan_trabajando),
 ]
 
 SCRAPEMCP_URL = os.environ.get("SCRAPEMCP_URL", "")
@@ -128,7 +131,7 @@ async def search_all(query: str, location: str = "Chile",
         for name, fn in DEDICATED_SCRAPERS
     ]
     
-    results = await asyncio.gather(*tasks, return_exceptions=True)
+    results = await asyncio.shield(asyncio.gather(*tasks, return_exceptions=True)) if tasks else []
     
     scraper_results = []
     for r in results:

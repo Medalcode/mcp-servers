@@ -17,6 +17,7 @@ class PlaywrightEngine(BrowserEngine):
         self._browser = None
         self._playwright = None
         self._available = False
+        self._loop = None
 
     async def _ensure_browser(self):
         if self._page:
@@ -35,15 +36,13 @@ class PlaywrightEngine(BrowserEngine):
     def _sync_run(self, coro):
         try:
             loop = asyncio.get_running_loop()
+            has_running_loop = loop.is_running()
         except RuntimeError:
-            loop = None
-        if loop and loop.is_running():
-            new_loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(new_loop)
-            try:
-                return new_loop.run_until_complete(coro)
-            finally:
-                new_loop.close()
+            has_running_loop = False
+        if has_running_loop:
+            if self._loop is None or self._loop.is_closed():
+                self._loop = asyncio.new_event_loop()
+            return self._loop.run_until_complete(coro)
         return asyncio.run(coro)
 
     def navigate(self, url: str) -> PageResult:
@@ -148,10 +147,27 @@ class PlaywrightEngine(BrowserEngine):
             return f"Click failed: {e}"
 
     def click_by_text(self, text: str) -> str:
-        return "click_by_text: not supported with Playwright"
+        if not self._page:
+            return "Browser not available"
+        try:
+            patterns = text.split("|")
+            for pattern in patterns:
+                locator = self._page.get_by_text(pattern.strip(), exact=False)
+                if self._sync_run(locator.count()) > 0:
+                    self._sync_run(locator.first.click())
+                    return f"Clicked text: {pattern.strip()}"
+            return f"No element found matching text: {text}"
+        except Exception as e:
+            return f"click_by_text failed: {e}"
 
     def run_script(self, script: str) -> str:
-        return "run_script: not supported with Playwright"
+        if not self._page:
+            return "Browser not available"
+        try:
+            result = self._sync_run(self._page.evaluate(script))
+            return str(result) if result is not None else ""
+        except Exception as e:
+            return f"run_script failed: {e}"
 
     def fill(self, selector: str, value: str) -> str:
         if not self._page:

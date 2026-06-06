@@ -120,10 +120,21 @@ def deduplicate(jobs: list) -> list:
     seen = set()
     result = []
     for job in jobs:
-        key = f"{job['title'].lower()}|{job['company'].lower()}"
+        title = job.get("title", "").lower().strip()
+        company = job.get("company", "").lower().strip()
+        location = job.get("location", "").lower().strip()[:30]
+        key = f"{title}|{company}|{location}"
         if key not in seen:
             seen.add(key)
             result.append(job)
+        else:
+            existing = next((j for j in result if f"{j['title'].lower()}|{j['company'].lower()}|{j.get('location','').lower()[:30]}" == key), None)
+            if existing:
+                existing_desc = existing.get("description", "")
+                job_desc = job.get("description", "")
+                if len(job_desc) > len(existing_desc):
+                    result.remove(existing)
+                    result.append(job)
     return result
 
 

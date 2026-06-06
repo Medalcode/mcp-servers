@@ -3,10 +3,8 @@ import json
 import logging
 import os
 import sys
-import tempfile
 import time
 import signal
-from urllib.parse import urlencode
 from mcp.server.fastmcp import FastMCP
 
 logger = logging.getLogger(__name__)
@@ -15,41 +13,11 @@ mcp = FastMCP("LinkedIn MCP")
 
 _browser_proc = None
 _browser_proc_lock = asyncio.Lock()
-_next_req_id = 100
+_next_req_id = 1
 _req_id_lock = asyncio.Lock()
 _linkedin_ready = False
-_linkedin_ready_lock = asyncio.Lock()
 
 MCP_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DATA_DIR = os.path.join(MCP_DIR, "data")
-CRED_FILE = os.path.join(DATA_DIR, "linkedin_credentials.json")
-
-os.makedirs(DATA_DIR, exist_ok=True)
-
-
-def _load_credentials():
-    if os.path.isfile(CRED_FILE):
-        try:
-            with open(CRED_FILE) as f:
-                return json.load(f)
-        except (json.JSONDecodeError, OSError) as e:
-            logger.warning("Failed to load credentials: %s", e)
-    return {}
-
-
-def _save_credentials(email, password):
-    fd, tmp_path = tempfile.mkstemp(dir=DATA_DIR, prefix="linkedin_creds_")
-    try:
-        with os.fdopen(fd, "w") as f:
-            json.dump({"email": email, "password": password}, f)
-        os.chmod(tmp_path, 0o600)
-        os.replace(tmp_path, CRED_FILE)
-    except Exception:
-        try:
-            os.unlink(tmp_path)
-        except OSError:
-            pass
-        raise
 
 
 async def _next_id() -> int:
@@ -69,7 +37,6 @@ async def _consume_stderr(proc):
             text = line.decode().rstrip()
             if text:
                 logger.debug("BrowserMCP stderr: %s", text)
-        logger.debug("BrowserMCP stderr consumer exiting (process ended)")
     except Exception:
         pass
 
@@ -92,15 +59,11 @@ async def _read_json_response(proc, timeout=60):
             return json.loads(buf)
         except json.JSONDecodeError:
             continue
-    raise TimeoutError(f"No valid JSON response from browser after {timeout}s")
+    raise TimeoutError("No valid JSON response from browser")
 
 
-async def _browser_call(method: str, params: dict = None, timeout: float = 120, description: str = ""):
+async def _browser_call(method: str, params: dict = None, timeout: float = 120):
     global _browser_proc
-    if _browser_proc is None or _browser_proc.returncode is not None:
-        logger.warning("BrowserMCP not running, starting...")
-        await _browser_start()
-
     req_id = await _next_id()
     req = (
         json.dumps(
@@ -119,7 +82,7 @@ async def _browser_call(method: str, params: dict = None, timeout: float = 120, 
         resp = await _read_json_response(_browser_proc, timeout=timeout)
         if resp.get("id") == req_id:
             if "error" in resp:
-                raise RuntimeError(f"BrowserMCP error ({method}): {resp['error']}")
+                raise RuntimeError(f"BrowserMCP error: {resp['error']}")
             content = resp.get("result", {}).get("content", [])
             texts = [c.get("text", "") for c in content if c.get("type") == "text"]
             return "\n".join(texts)
@@ -160,8 +123,6 @@ async def _browser_start():
         _browser_proc.stdin.write(init_req.encode())
         await _browser_proc.stdin.drain()
         resp = await _read_json_response(_browser_proc, timeout=10)
-        if resp is None:
-            raise RuntimeError("BrowserMCP did not respond to initialize")
         logger.info(
             "BrowserMCP initialized: %s",
             str(resp.get("result", {}))[:80] if resp else "None",
@@ -176,82 +137,56 @@ async def _browser_start():
 
 async def _browser_stop():
     global _browser_proc
-    async with _browser_proc_lock:
-        if _browser_proc is not None and _browser_proc.returncode is None:
+    if _browser_proc is not None and _browser_proc.returncode is None:
+        try:
+            _browser_proc.send_signal(signal.SIGTERM)
+            await asyncio.wait_for(_browser_proc.wait(), timeout=10)
+        except Exception:
             try:
-                _browser_proc.send_signal(signal.SIGTERM)
-                await asyncio.wait_for(_browser_proc.wait(), timeout=10)
+                _browser_proc.kill()
             except Exception:
-                try:
-                    _browser_proc.kill()
-                except Exception:
-                    pass
-            _browser_proc = None
+                pass
+        _browser_proc = None
 
 
 async def _ensure_linkedin_session(email: str = None, password: str = None):
     global _linkedin_ready
-    async with _linkedin_ready_lock:
-        if _linkedin_ready:
-            return
+    if _linkedin_ready:
+        return
 
-        await _browser_start()
-        await _browser_call("navigate", {"url": "https://www.linkedin.com"})
-        await _browser_call("wait", {"ms": 2000})
-        page_text = await _browser_call("extract", {"selector": "body"})
+    await _browser_start()
+    await _browser_call("navigate", {"url": "https://www.linkedin.com"})
+    await _browser_call("wait", {"ms": 2000})
+    page_text = await _browser_call("extract", {"selector": "body"})
 
-        if _check_logged_in(page_text):
-            _linkedin_ready = True
-            logger.info("Already logged in to LinkedIn")
-            return
-
-        creds = _load_credentials()
-        email = email or os.environ.get("LINKEDIN_EMAIL") or creds.get("email")
-        password = password or os.environ.get("LINKEDIN_PASSWORD") or creds.get("password")
-
-        if not email or not password:
-            raise RuntimeError(
-                "LinkedIn credentials required. Provide email/password to linkedin_login() "
-                "or set LINKEDIN_EMAIL/LINKEDIN_PASSWORD env vars."
-            )
-
-        logger.info("Logging in to LinkedIn...")
-        await _browser_call("navigate", {"url": "https://www.linkedin.com/login"})
-        await _browser_call("wait", {"ms": 2000})
-        await _browser_call("fill", {"selector": "#username", "value": email})
-        await _browser_call("fill", {"selector": "#password", "value": password})
-        await _browser_call("click", {"selector": "button[type=submit]"})
-        await _browser_call("wait", {"ms": 5000})
-
-        check = await _browser_call("extract", {"selector": "body"})
-        if _check_security_challenge(check):
-            raise RuntimeError("LinkedIn requires security verification - log in manually via Chrome")
-
-        _save_credentials(email, password)
+    if "sign in" not in page_text.lower() and "feed" in page_text.lower():
         _linkedin_ready = True
-        logger.info("LinkedIn login successful")
+        logger.info("Already logged in to LinkedIn")
+        return
 
+    email = email or os.environ.get("LINKEDIN_EMAIL")
+    password = password or os.environ.get("LINKEDIN_PASSWORD")
 
-def _check_logged_in(page_text: str) -> bool:
-    lower = page_text.lower()
-    return "sign in" not in lower and "feed" in lower
+    if not email or not password:
+        raise RuntimeError(
+            "LinkedIn credentials required. Provide email/password to linkedin_login() "
+            "or set LINKEDIN_EMAIL/LINKEDIN_PASSWORD env vars."
+        )
 
+    logger.info("Logging in to LinkedIn...")
+    await _browser_call("navigate", {"url": "https://www.linkedin.com/login"})
+    await _browser_call("wait", {"ms": 2000})
+    await _browser_call("fill", {"selector": "#username", "value": email})
+    await _browser_call("fill", {"selector": "#password", "value": password})
+    await _browser_call("click", {"selector": "button[type=submit]"})
+    await _browser_call("wait", {"ms": 5000})
 
-def _check_security_challenge(page_text: str) -> bool:
-    lower = page_text.lower()
-    return "checkpoint" in lower or "security" in lower or "challenge" in lower
+    check = await _browser_call("extract", {"selector": "body"})
+    if "checkpoint" in check.lower() or "security" in check.lower():
+        raise RuntimeError("LinkedIn requires security verification - log in manually via Chrome")
 
-
-async def _detect_rate_limit(text: str) -> bool:
-    lower = text.lower()
-    if any(p in lower for p in ["too many requests", "rate limit", "429", "slow down"]):
-        logger.warning("LinkedIn rate limit detected")
-        return True
-    return False
-
-
-async def _rate_limit_delay():
-    await asyncio.sleep(os.environ.get("LINKEDIN_RATE_DELAY", "3"))
+    _linkedin_ready = True
+    logger.info("LinkedIn login successful")
 
 
 @mcp.tool()
@@ -272,16 +207,12 @@ async def linkedin_search_jobs(
 ) -> str:
     """Search for jobs on LinkedIn. Returns title, company, location, and apply link for each result."""
     await _ensure_linkedin_session()
-    params = {
-        "keywords": keywords,
-        "location": location,
-    }
+    params = f"keywords={keywords.replace(' ', '%20')}&location={location.replace(' ', '%20')}"
     if remote_only:
-        params["f_WT"] = "2"
-    url = f"https://www.linkedin.com/jobs/search/?{urlencode(params)}"
+        params += "&f_WT=2"
+    url = f"https://www.linkedin.com/jobs/search/?{params}"
     await _browser_call("navigate", {"url": url})
     await _browser_call("wait", {"ms": 3000})
-    await _rate_limit_delay()
 
     result = await _browser_call(
         "run_script",
@@ -331,7 +262,6 @@ async def linkedin_get_job_details(url: str) -> str:
     await _ensure_linkedin_session()
     await _browser_call("navigate", {"url": url})
     await _browser_call("wait", {"ms": 3000})
-    await _rate_limit_delay()
 
     result = await _browser_call(
         "run_script",
@@ -378,7 +308,6 @@ async def linkedin_check_easy_apply(url: str) -> str:
     await _ensure_linkedin_session()
     await _browser_call("navigate", {"url": url})
     await _browser_call("wait", {"ms": 3000})
-    await _rate_limit_delay()
 
     result = await _browser_call(
         "run_script",
@@ -403,7 +332,6 @@ async def linkedin_easy_apply(url: str, resume_path: str = "") -> str:
     await _ensure_linkedin_session()
     await _browser_call("navigate", {"url": url})
     await _browser_call("wait", {"ms": 3000})
-    await _rate_limit_delay()
 
     has_btn = await _browser_call(
         "run_script",
@@ -422,22 +350,6 @@ async def linkedin_easy_apply(url: str, resume_path: str = "") -> str:
 
     await _browser_call("click_by_text", {"text": "Easy Apply|Solicitar|Postular|Apply"})
     await _browser_call("wait", {"ms": 2000})
-
-    if resume_path:
-        if not os.path.isfile(resume_path):
-            return f"Resume file not found: {resume_path}"
-        resume_abs = os.path.abspath(resume_path)
-        await _browser_call("run_script", {"script": f"""
-            const fileInput = document.querySelector('input[type=file]');
-            if (fileInput) {{
-                const dt = new DataTransfer();
-                dt.items.add(new File(['dummy'], '{os.path.basename(resume_abs)}'));
-                fileInput.files = dt.files;
-                fileInput.dispatchEvent(new Event('change', {{ bubbles: true }}));
-            }}
-            return fileInput ? 'uploaded' : 'no_file_input';
-        """})
-        await _browser_call("wait", {"ms": 2000})
 
     steps = 0
     results = []
@@ -470,7 +382,6 @@ async def linkedin_easy_apply(url: str, resume_path: str = "") -> str:
             results.append(f"Step {steps+1} fields:\n{fields}")
             await _browser_call("click_by_text", {"text": "Next|Siguiente|Review|Done"})
             await _browser_call("wait", {"ms": 1500})
-            await _rate_limit_delay()
             steps += 1
             continue
 
@@ -495,7 +406,6 @@ async def linkedin_easy_apply(url: str, resume_path: str = "") -> str:
             },
         )
         await _browser_call("wait", {"ms": 2000})
-        await _rate_limit_delay()
         steps += 1
 
     result_text = "\n".join(results) if results else "Application flow completed"

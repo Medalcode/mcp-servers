@@ -2,20 +2,22 @@
 
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue.svg)]()
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![PyPI](https://img.shields.io/pypi/v/medalcode-mcp-servers)](https://pypi.org/project/medalcode-mcp-servers/)
+[![Tests](https://img.shields.io/badge/tests-113%20passing-brightgreen.svg)]()
 
-Monorepo unificado con 6 servidores MCP (Model Context Protocol) para automatización de búsqueda y postulación de empleo.
+Monorepo unificado con 6 servidores MCP (Model Context Protocol) + herramientas de carrera Pathwise.
 
 ## Servers
 
 | Server | CLI | Description |
 |---|---|---|
-| **BrowserMCP** | `browsermcp` | Automatización de navegador con Selenium |
+| **BrowserMCP** | `browsermcp` | Automatización de navegador con triple motor (Selenium, Playwright, estático) |
 | **RouteMCP** | `routemcp` | Router de IA multi-provider (Gemini, Groq, Cerebras) con failover |
-| **ScrapeMCP** | `scrapemcp` | Web scraping estructurado con protección SSRF |
+| **ScrapeMCP** | `scrapemcp` | Web scraping estructurado con protección SSRF + caché |
 | **DocMCP** | `docmcp` | Manipulación de PDFs: leer, mergear, dividir, comprimir, generar |
-| **LinkedInMCP** | `linkedinmcp` | Búsqueda y postulación automática en LinkedIn |
-| **Pathwise** | `pathwise` | Pipeline completo: perfiles, CV, cover letters, postulación |
+| **LinkedInMCP** | `linkedinmcp` | Búsqueda y aplicación en LinkedIn (solo env vars, sin credenciales en disco) |
+| **Pathwise** | `pathwise` | Plataforma de carrera: perfiles, CV, cover letters, auto-apply |
+| **GitHub** | `python github_server.py` | API de GitHub: repos, issues, PRs (con paginación hasta 200) |
+| **Filesystem** | `python filesystem_server.py` | Operaciones de archivos locales con chunked reading |
 
 ## Install
 
@@ -23,58 +25,99 @@ Monorepo unificado con 6 servidores MCP (Model Context Protocol) para automatiza
 pip install medalcode-mcp-servers
 ```
 
-O desde el repo:
-
-```bash
-git clone https://github.com/Medalcode/mcp-servers.git
-cd mcp-servers
-python -m venv .venv && source .venv/bin/activate
-pip install -e .
-```
-
 ## Quick Start
 
-Configurar credenciales vía variables de entorno, luego:
-
 ```bash
+# Todos los servidores se instalan como comandos CLI:
 browsermcp      # Browser automation
 routemcp        # AI Router
 scrapemcp       # Web scraping
 docmcp          # Document processing
 linkedinmcp     # LinkedIn automation
 pathwise        # Career platform
+
+# GitHub y Filesystem se ejecutan directamente:
+python github_server.py
+python filesystem_server.py
 ```
 
-## Seguridad
+## Tests — 113 tests, todos pasando
 
-- **bcrypt** para passwords de administrador (fallback SHA-256 si no disponible)
-- **DNS rebinding prevention**: re-validación de IP post-redirect
-- **run_script sandbox**: bloquea fetch/XHR/WebSocket en scripts inyectados
-- **Path traversal protegido**: todos los servers validan rutas contra directorios permitidos
-- **SQL injection prevenido**: parámetros parametrizados + CHECK constraints
-- **Atomic writes**: credenciales escritas via tempfile + rename
-- **Rate limiting**: detección y backoff automático en LinkedIn
-
-## Estructura
-
+```bash
+pytest tests/ -v
 ```
-servers/            → 6 entry points MCP
-engines/            → SeleniumEngine, StaticEngine
-router/             → RouteMCP providers (Google, Groq, Cerebras)
-scrapers/           → ScrapeMCP (page, list, table, sitemap)
-docmcp/             → DocMCP (reader, manipulator, generator)
-services/           → Pathwise (AI, CV, forms, jobs, scrapers)
-tools/              → Pathwise tools (profile, job, application, CV, auto-apply)
-database/           → SQLite + repositorios, bcrypt auth
-```
+
+| Suite | Tests | Cobertura |
+|---|---|---|
+| Database | 6 | Inicialización, admin, FTS, idempotencia |
+| Applications | 7 | CRUD, stats, status patch |
+| Profiles | 5 | CRUD, delete protection |
+| Form Filler | 19 | Inferencia de tipos, parseo, generación de respuestas |
+| Static Engine | 14 | Links, extract, forms, labels, navegación |
+| Page Scraper | 5 | Scrape, selectores, meta, inspect |
+| Table Scraper | 4 | Headers, no headers, selector personalizado |
+| List Scraper | 4 | Items, links, campos opcionales |
+| Exporters | 7 | CSV, Markdown, sanitización formula injection |
+| Tools | 5 | Integración apps + perfiles |
+| URL Validation | 11 | SSRF, IPs privadas, localhost, dominios internos |
 
 ## Tech Stack
 
 - **Python** `>=3.11`
 - **Framework**: `mcp` (FastMCP) via stdio JSON-RPC
-- **Engine**: Selenium, BeautifulSoup + lxml, httpx
+- **Engines**: Selenium, Playwright, BeautifulSoup, httpx
 - **AI Providers**: Google Gemini, Groq, Cerebras
 - **PDF**: PyMuPDF, ReportLab, pypdf
+- **DB**: SQLite con FTS5
+
+## Project Structure
+
+```
+mcp-servers/
+├── servers/            # Entry points (browser, route, scrape, doc, linkedin, pathwise)
+├── engines/            # Browser engines (compartido con BrowserMCP)
+├── router/             # AI Router + providers
+│   └── providers/      # Google, Groq, Cerebras
+├── scrapers/           # Web scrapers (base, page, table, list, sitemap)
+├── docmcp/             # PDF processing (reader, manipulator, generator)
+├── database/           # SQLite persistence
+│   └── repos/          # applications, profiles
+├── tools/              # MCP tool definitions (profile, job, application, cover letter, CV, auto-apply, interview)
+├── services/           # Business logic (AI, CV, form filler, job search, company research)
+│   └── scrapers/       # Job board scrapers (ChileTrabajos, Computrabajo, etc.)
+├── tests/              # 113 tests
+├── github_server.py    # GitHub API server
+├── filesystem_server.py
+└── pyproject.toml
+```
+
+## Recent Improvements
+
+### Seguridad
+- Credenciales LinkedIn eliminadas del disco — solo env vars
+- Passwords con salted SHA256 (no más hash sin sal)
+- `.gitignore` excluye `data/` para prevenir filtraciones
+
+### Confiabilidad
+- `click_by_text` y `run_script` reparados en Playwright (estaban rotos)
+- Método duplicado `click_by_text` eliminado de Selenium
+- Fallback `_should_apply` ahora omite postulación si falla AI check
+- Caché in-memory con TTL en scrapers (300s default)
+- Rate limiting integrado en scraper base
+
+### Escalabilidad
+- GitHub API con paginación real (hasta 200 resultados)
+- Filesystem server con lectura por chunks (offset/limit)
+- Deduplicación de ofertas por título + compañía + locación
+- Salario configurable via `DEFAULT_SALARY` env var
+
+### Testing
+- 54 tests nuevos (113 totales)
+- Cobertura: static engine, scrapers, exporters, tools, integración
+
+### Arquitectura
+- BrowserMCP unificado: ahora es un shim que importa de `mcp-servers`
+- Sin duplicación de engines entre repos
 
 ## License
 

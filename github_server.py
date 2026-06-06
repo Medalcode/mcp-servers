@@ -29,7 +29,7 @@ except Exception as e:
 def handle_errors(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
-        logger.info("Calling %s(repo=%s, kwargs=%s)", func.__name__, args[0] if args else "?", kwargs)
+        logger.info("Calling %s(args=%s, kwargs=%s)", func.__name__, args[1:] if args else "?", kwargs)
         try:
             return func(*args, **kwargs)
         except github.RateLimitExceededException as e:
@@ -39,6 +39,18 @@ def handle_errors(func):
         except ValueError as e:
             return f"Validation error: {e}"
     return wrapper
+
+
+def _paginate(queriable, limit: int, start_page: int = 0):
+    items = []
+    page = start_page
+    while len(items) < limit:
+        batch = queriable.get_page(page)
+        if not batch:
+            break
+        items.extend(batch)
+        page += 1
+    return items[:limit]
 
 
 def validate_repo(repo: str) -> None:
@@ -51,8 +63,8 @@ def validate_repo(repo: str) -> None:
 @mcp.tool()
 @handle_errors
 def search_repositories(query: str, limit: int = 10) -> str:
-    limit = min(limit, 100)
-    repos = gh.search_repositories(query)[:limit]
+    limit = min(limit, 200)
+    repos = _paginate(gh.search_repositories(query), limit)
     return "\n".join(f"{r.full_name} - {r.stargazers_count} stars - {r.description or ''}" for r in repos)
 
 
@@ -75,9 +87,9 @@ def get_repository(repo: str) -> str:
 @mcp.tool()
 @handle_errors
 def list_issues(repo: str, state: str = "open", limit: int = 10) -> str:
-    limit = min(limit, 100)
+    limit = min(limit, 200)
     r = gh.get_repo(repo)
-    issues = r.get_issues(state=state)[:limit]
+    issues = _paginate(r.get_issues(state=state), limit)
     return "\n".join(f"#{i.number} {i.title} ({i.state}) - {i.html_url}" for i in issues)
 
 
@@ -112,18 +124,18 @@ def create_issue(repo: str, title: str, body: str = "") -> str:
 @mcp.tool()
 @handle_errors
 def list_pull_requests(repo: str, state: str = "open", limit: int = 10) -> str:
-    limit = min(limit, 100)
+    limit = min(limit, 200)
     r = gh.get_repo(repo)
-    prs = r.get_pulls(state=state)[:limit]
+    prs = _paginate(r.get_pulls(state=state), limit)
     return "\n".join(f"#{pr.number} {pr.title} ({pr.state}) - {pr.html_url}" for pr in prs)
 
 
 @mcp.tool()
 @handle_errors
 def list_recent_commits(repo: str, branch: str = "main", limit: int = 10) -> str:
-    limit = min(limit, 100)
+    limit = min(limit, 200)
     r = gh.get_repo(repo)
-    commits = r.get_commits(sha=branch)[:limit]
+    commits = _paginate(r.get_commits(sha=branch), limit)
     return "\n".join(
         f"{c.sha[:8]} {c.commit.message.split("\n")[0]} - {c.commit.author.name}" for c in commits
     )

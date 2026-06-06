@@ -88,7 +88,7 @@ class StaticEngine(BrowserEngine):
                 name = inp.get("name", "")
                 type_ = inp.get("type", "text") if tag == "input" else tag
                 label_el = form.find("label", attrs={"for": inp.get("id", "")})
-                label = label_.get_text(strip=True) if label_el else ""
+                label = label_el.get_text(strip=True) if label_el else ""
                 if not label:
                     parent_label = inp.find_parent("label")
                     if parent_label:
@@ -105,6 +105,12 @@ class StaticEngine(BrowserEngine):
 
     def click(self, selector: str) -> str:
         return "Click requires a browser engine (Selenium or Playwright)"
+
+    def click_by_text(self, text: str) -> str:
+        return "Click-by-text requires a browser engine (Selenium or Playwright)"
+
+    def run_script(self, script: str) -> str:
+        return "JavaScript execution requires a browser engine (Selenium or Playwright)"
 
     def fill(self, selector: str, value: str) -> str:
         return "Form filling requires a browser engine (Selenium or Playwright)"

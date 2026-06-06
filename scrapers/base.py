@@ -7,7 +7,7 @@ import re
 import socket
 import time
 from dataclasses import dataclass
-from typing import Optional
+
 from urllib.parse import urlparse, unquote
 
 import httpx
@@ -70,7 +70,7 @@ def _validate_url(url: str) -> None:
                 if addr in block:
                     raise ValueError(f"Blocked IP range: {ip_str}")
     except socket.gaierror:
-        pass
+        raise ValueError(f"Cannot resolve hostname: {hostname}")
 
 
 @dataclass
@@ -78,7 +78,7 @@ class ScrapeResult:
     url: str
     status: int
     data: dict | list | str | None = None
-    error: Optional[str] = None
+    error: str | None = None
     pages_scraped: int = 1
 
 
@@ -90,6 +90,8 @@ class BaseScraper:
         })
         self._rate_limit = int(os.getenv("RATE_LIMIT_RPS", "5"))
         self._last_request = 0.0
+        self._cache: dict[str, tuple[BeautifulSoup, str, float]] = {}
+        self._cache_ttl = int(os.getenv("SCRAPE_CACHE_TTL", "300"))
 
     async def _rate_limit_wait(self):
         min_interval = 1.0 / self._rate_limit
@@ -99,13 +101,23 @@ class BaseScraper:
         self._last_request = time.monotonic()
 
     async def _fetch(self, url: str) -> tuple[BeautifulSoup, str]:
+        now = time.monotonic()
+        if url in self._cache:
+            soup, resolved_url, timestamp = self._cache[url]
+            if now - timestamp < self._cache_ttl:
+                logger.info("Cache hit: %s", url)
+                return soup, resolved_url
+            del self._cache[url]
         logger.info("Fetching URL: %s", url)
         _validate_url(url)
         await self._rate_limit_wait()
         self._session.headers["User-Agent"] = random.choice(USER_AGENTS)
         resp = await self._session.get(url, follow_redirects=True)
         resp.raise_for_status()
-        return BeautifulSoup(resp.content, "lxml"), str(resp.url)
+        soup = BeautifulSoup(resp.content, "html5lib")
+        resolved = str(resp.url)
+        self._cache[url] = (soup, resolved, time.monotonic())
+        return soup, resolved
 
     async def close(self):
         await self._session.aclose()

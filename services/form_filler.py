@@ -1,8 +1,9 @@
+import os
 import re
 import json
 import logging
 from enum import Enum
-from typing import Optional
+
 
 logger = logging.getLogger(__name__)
 
@@ -56,6 +57,8 @@ def _infer_type(tag: str, html_type: str) -> QuestionType:
     }
     if tag == "select":
         return QuestionType.SELECT
+    if tag == "textarea":
+        return QuestionType.TEXTAREA
     return type_map.get(html_type, QuestionType.TEXT)
 
 
@@ -179,9 +182,11 @@ def generate_answer(question: FormQuestion, profile: dict) -> str:
     email = pi.get("email", "")
     phone = pi.get("phone", "")
     city = pi.get("city", "")
-    name = f"{pi.get('firstName', '')} {pi.get('lastName', '')}".strip() or ""
+    first = pi.get("firstName") or pi.get("first_name", "")
+    last = pi.get("lastName") or pi.get("last_name", "")
+    name = f"{first} {last}".strip() or ""
     skills = ", ".join(profile.get("skills", [])[:10])
-    current_title = pi.get("currentTitle", "")
+    current_title = pi.get("currentTitle") or pi.get("current_title", "")
     summary = pi.get("summary", "")
     
     exp_lines = []
@@ -195,6 +200,13 @@ def generate_answer(question: FormQuestion, profile: dict) -> str:
         status = "en curso" if e.get("current") else "completado"
         edu_lines.append(f"- {e['degree']} en {e['school']} ({status})")
     edu_text = "\n".join(edu_lines)
+
+    if question.type == QuestionType.EMAIL:
+        return email
+    if question.type == QuestionType.TEL:
+        return phone
+
+    salary = profile.get("personalInfo", {}).get("salary_expectation", "")
 
     patterns = [
         (r'(carrera|estudiando|semestre|año|estudios|formación académica|casa de estudios|universidad)',
@@ -214,23 +226,27 @@ def generate_answer(question: FormQuestion, profile: dict) -> str:
         (r'(conocimiento|tecnología|stack|técnico)',
          f"{skills}" if skills else "Según perfil profesional."),
         (r'(sueldo|salario|renta|pretensión)',
-         profile.get("personalInfo", {}).get("salary_expectation", "800000")),
+         salary if salary else os.environ.get("DEFAULT_SALARY", "800000")),
     ]
 
     for pattern, answer in patterns:
         if re.search(pattern, label_lower):
             return answer
 
-    if question.type == QuestionType.EMAIL:
-        return email
-    if question.type == QuestionType.TEL:
-        return phone
-
     return f"Sí, cuento con la experiencia y formación requerida. {current_title} con conocimientos en {skills}."
 
 
 def generate_radio_answer(question: FormQuestion, profile: dict) -> str:
     label_lower = question.label.lower()
+    
+    negative_patterns = [
+        r'^(no\s|no )',
+        r'(discapacidad|enfermedad|problema)',
+    ]
+    
+    for pattern in negative_patterns:
+        if re.search(pattern, label_lower):
+            return "No"
     
     positive_patterns = [
         r'(disponibilidad|puedes|puede|cuentas|cuenta|tienes|tiene|conocimiento|experiencia)',
@@ -242,15 +258,6 @@ def generate_radio_answer(question: FormQuestion, profile: dict) -> str:
     for pattern in positive_patterns:
         if re.search(pattern, label_lower):
             return "Si"
-    
-    negative_patterns = [
-        r'^(no\s|no )',
-        r'(discapacidad|enfermedad|problema)',
-    ]
-    
-    for pattern in negative_patterns:
-        if re.search(pattern, label_lower):
-            return "No"
     
     return "Si"
 

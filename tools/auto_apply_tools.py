@@ -207,7 +207,7 @@ Responde SOLO con JSON:
         return parsed.get("apply", True), parsed.get("reason", "Sin evaluación")
     except Exception as e:
         logger.warning("Skill check AI evaluation failed: %s", e)
-        return True, "No se pudo evaluar, se postula igual"
+        return False, "No se pudo evaluar la compatibilidad, se omite postulación"
 
 
 async def _get_context_help(question: FormQuestion, profile: dict) -> str:
@@ -249,11 +249,21 @@ async def _smart_fill_form(driver_caller, forms_json: str, profile: dict,
             return
         if q.type == QuestionType.RADIO:
             answer = generate_radio_answer(q, profile)
+            answer_lower = answer.lower()
+            matched = False
             for option in q.options or []:
+                if option.lower().strip() == answer_lower:
+                    try:
+                        await driver_caller("click", {"selector": f"input[name='{q.name}'][value='{option}']"})
+                        matched = True
+                        break
+                    except Exception as e:
+                        logger.warning("radio click '%s' option '%s': %s", q.name, option, e)
+            if not matched:
                 try:
-                    await driver_caller("click", {"selector": f"input[name='{q.name}'][value='{option}']"})
+                    await driver_caller("click", {"selector": f"input[name='{q.name}'][value='{answer}']"})
                 except Exception as e:
-                    logger.warning("radio click '%s' option '%s': %s", q.name, option, e)
+                    logger.warning("radio fallback click '%s': %s", q.name, e)
             answers_log.append(f"  [{q.type.value}] {q.label[:40]} -> {answer}")
             filled_count += 1
         elif q.type in (QuestionType.SELECT,):
@@ -409,13 +419,27 @@ async def _batch_apply_one(url: str, profile: dict) -> dict:
             continue
         if q.type == QuestionType.RADIO:
             answer = generate_radio_answer(q, profile)
-            try:
-                await _call_browser_tool("click", {
-                    "selector": f"input[name='{q.name}'][value='{answer.lower()}']"
-                })
-                filled_count += 1
-            except Exception as e:
-                logger.warning("batch_apply radio click '%s': %s", q.name, e)
+            answer_lower = answer.lower()
+            matched = False
+            for option in q.options or []:
+                if option.lower().strip() == answer_lower:
+                    try:
+                        await _call_browser_tool("click", {
+                            "selector": f"input[name='{q.name}'][value='{option}']"
+                        })
+                        matched = True
+                        filled_count += 1
+                        break
+                    except Exception as e:
+                        logger.warning("batch_apply radio click '%s': %s", q.name, e)
+            if not matched:
+                try:
+                    await _call_browser_tool("click", {
+                        "selector": f"input[name='{q.name}'][value='{answer_lower}']"
+                    })
+                    filled_count += 1
+                except Exception as e:
+                    logger.warning("batch_apply radio fallback click '%s': %s", q.name, e)
         elif q.type in (QuestionType.TEXTAREA, QuestionType.TEXT,
                         QuestionType.EMAIL, QuestionType.TEL):
             answer = generate_answer(q, profile)

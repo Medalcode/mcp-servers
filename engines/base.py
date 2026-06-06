@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Optional
+
 
 
 @dataclass
@@ -9,8 +9,8 @@ class PageResult:
     title: str
     html: str
     text: str
-    screenshot: Optional[bytes] = None
-    error: Optional[str] = None
+    screenshot: bytes | None = None
+    error: str | None = None
 
 
 @dataclass
@@ -55,7 +55,7 @@ class BrowserEngine(ABC):
         ...
 
     @abstractmethod
-    def screenshot(self) -> Optional[bytes]:
+    def screenshot(self) -> bytes | None:
         ...
 
     @abstractmethod

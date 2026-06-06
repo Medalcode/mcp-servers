@@ -1,6 +1,9 @@
 from database import get_connection
+from database.repos import warn_default_user
 
 def list_applications(user_id=1, status=None, limit=100, offset=0):
+    if user_id == 1:
+        warn_default_user()
     conn = get_connection()
     query = "SELECT * FROM applications WHERE user_id=?"
     params = [user_id]
@@ -13,6 +16,8 @@ def list_applications(user_id=1, status=None, limit=100, offset=0):
     return [dict(r) for r in cur.fetchall()]
 
 def get_application(app_id, user_id=1):
+    if user_id == 1:
+        warn_default_user()
     conn = get_connection()
     cur = conn.execute("SELECT * FROM applications WHERE id=? AND user_id=?", (app_id, user_id))
     row = cur.fetchone()
@@ -53,18 +58,22 @@ def update_application(app_id, user_id, **kwargs):
 
 def patch_status(app_id, user_id, status):
     conn = get_connection()
-    cur = conn.execute("UPDATE applications SET status=?, updated_at=CURRENT_TIMESTAMP WHERE id=? AND user_id=?",
+    cur = conn.execute("UPDATE applications SET status=? WHERE id=? AND user_id=?",
                        (status, app_id, user_id))
     conn.commit()
     return cur.rowcount > 0
 
 def delete_application(app_id, user_id=1):
+    if user_id == 1:
+        warn_default_user()
     conn = get_connection()
     cur = conn.execute("DELETE FROM applications WHERE id=? AND user_id=?", (app_id, user_id))
     conn.commit()
     return cur.rowcount > 0
 
 def get_stats(user_id=1):
+    if user_id == 1:
+        warn_default_user()
     conn = get_connection()
     cur = conn.execute("SELECT status, COUNT(*) as count FROM applications WHERE user_id=? GROUP BY status", (user_id,))
     stats = {r["status"]: r["count"] for r in cur.fetchall()}

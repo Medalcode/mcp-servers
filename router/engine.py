@@ -1,5 +1,5 @@
 import asyncio
-from typing import Optional
+
 
 from router.models import MODELS, TASK_ROUTING, ModelInfo
 from router.classifier import classify
@@ -39,7 +39,7 @@ class RouterEngine:
                 available.append(m)
         return available
 
-    async def route(self, prompt: str, task_type: Optional[str] = None) -> str:
+    async def route(self, prompt: str, task_type: str | None = None) -> str:
         task = await classify(prompt, task_type)
         preferences = TASK_ROUTING.get(task, TASK_ROUTING["general"])
         errors = []

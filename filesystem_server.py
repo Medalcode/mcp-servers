@@ -13,8 +13,9 @@ if not allowed:
     raise RuntimeError("ALLOWED_PATH environment variable is required")
 ALLOWED_PATH = Path(allowed).resolve()
 
-MAX_READ_SIZE = 100 * 1024 * 1024
+MAX_READ_SIZE = 50 * 1024 * 1024
 MAX_WRITE_SIZE = 10 * 1024 * 1024
+CHUNK_SIZE = 8 * 1024 * 1024
 
 logger.info("Filesystem MCP server starting, allowed path: %s", ALLOWED_PATH)
 
@@ -29,14 +30,18 @@ def _check_path(path: str) -> Path:
 
 
 @mcp.tool()
-def read_file(path: str) -> str:
-    logger.info("read_file called: %s", path)
+def read_file(path: str, offset: int = 0, limit: int = 0) -> str:
+    logger.info("read_file called: %s (offset=%d, limit=%d)", path, offset, limit)
     full = _check_path(path)
     if not full.is_file():
         return f"File not found: {path}"
     stat = full.stat()
     if stat.st_size > MAX_READ_SIZE:
         return f"File too large: {path} ({stat.st_size} bytes). Max: {MAX_READ_SIZE} bytes"
+    if limit > 0:
+        with open(full, "r", encoding="utf-8") as f:
+            f.seek(offset)
+            return f.read(limit)
     return full.read_text(encoding="utf-8")
 
 

@@ -50,9 +50,17 @@ scrapemcp = "servers.scrape:main"
 docmcp = "servers.doc:main"
 linkedinmcp = "servers.linkedin:main"
 pathwise = "servers.pathwise:main"
+pathwise-pipeline = "tools.pipeline.main:main"
 
 [tool.hatch.build.targets.wheel]
-packages = ["servers", "engines", "router", "router.providers", "scrapers", "docmcp", "database", "database.repos", "tools", "services", "services.scrapers"]
+packages = ["servers", "engines", "router", "router.providers", "scrapers", "docmcp", "database", "database.repos", "tools", "tools.pipeline", "services", "services.scrapers"]
+
+[project.optional-dependencies]
+test = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.24.0",
+]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+testpaths = ["tests"]

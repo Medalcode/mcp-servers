@@ -7,25 +7,30 @@ from database.config import ROUTEMCP_ENABLED
 logger = logging.getLogger(__name__)
 
 ROUTEMCP_URL = os.getenv("ROUTEMCP_URL", "http://localhost:8000")
-_client = httpx.AsyncClient(timeout=120)
+
+AI_TEMPERATURE = float(os.getenv("AI_TEMPERATURE", "0.3"))
 
 async def _call_routemcp(action: str, prompt: str, model: str = "llama-3.3-70b-versatile") -> str:
     if not ROUTEMCP_ENABLED:
         raise RuntimeError("RouteMCP is not enabled. Set ROUTEMCP_ENABLED=true")
     try:
-        resp = await _client.post(f"{ROUTEMCP_URL}/api/chat", json={
-            "model": model,
-            "messages": [{"role": "user", "content": prompt}],
-            "temperature": 0.3,
-        })
-        resp.raise_for_status()
-        data = resp.json()
-        return data.get("content", "")
+        async with httpx.AsyncClient(timeout=120) as client:
+            resp = await client.post(f"{ROUTEMCP_URL}/api/chat", json={
+                "model": model,
+                "messages": [{"role": "user", "content": prompt}],
+                "temperature": AI_TEMPERATURE,
+            })
+            resp.raise_for_status()
+            data = resp.json()
+            return data.get("content", "")
     except httpx.TimeoutException as e:
         logger.error("RouteMCP timeout for action=%s: %s", action, e)
         raise
-    except Exception as e:
-        logger.error("RouteMCP call failed for action=%s: %s", action, e)
+    except httpx.HTTPStatusError as e:
+        logger.error("RouteMCP HTTP error for action=%s: %s", action, e)
+        raise
+    except (json.JSONDecodeError, KeyError) as e:
+        logger.error("RouteMCP response parse error for action=%s: %s", action, e)
         raise
 
 def _clean_json(text: str) -> str:

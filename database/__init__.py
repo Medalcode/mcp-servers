@@ -1,15 +1,10 @@
+import hashlib
 import logging
 import os
+import secrets
 import sqlite3
 from contextvars import ContextVar
 from pathlib import Path
-
-try:
-    import bcrypt
-    HAS_BCRYPT = True
-except ImportError:
-    HAS_BCRYPT = False
-
 from database.config import DB_PATH
 
 logger = logging.getLogger(__name__)
@@ -91,15 +86,13 @@ def init_db():
             profile_id INTEGER,
             job_title TEXT NOT NULL,
             company TEXT NOT NULL,
-            status TEXT DEFAULT 'to_apply'
-                CHECK(status IN ('to_apply','applied','interview','offer','rejected')),
+            status TEXT DEFAULT 'to_apply',
             url TEXT,
             salary_range TEXT,
             location TEXT,
             applied_date DATETIME DEFAULT CURRENT_TIMESTAMP,
             notes TEXT,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
             FOREIGN KEY (profile_id) REFERENCES profiles(id) ON DELETE SET NULL
         );
@@ -113,7 +106,7 @@ def init_db():
             description TEXT,
             culture TEXT,
             tech_stack TEXT,
-            glassdoor_rating REAL CHECK(glassdoor_rating BETWEEN 0 AND 5),
+            glassdoor_rating REAL,
             linkedin_url TEXT,
             careers_url TEXT,
             notes TEXT,
@@ -160,9 +153,6 @@ def init_db():
         CREATE INDEX IF NOT EXISTS idx_applications_created ON applications(created_at);
         CREATE INDEX IF NOT EXISTS idx_companies_name ON companies(name);
         CREATE INDEX IF NOT EXISTS idx_interview_questions_company ON interview_questions(company);
-        CREATE INDEX IF NOT EXISTS idx_profiles_user_id ON profiles(user_id);
-        CREATE INDEX IF NOT EXISTS idx_interview_questions_app ON interview_questions(application_id);
-        CREATE UNIQUE INDEX IF NOT EXISTS idx_skills_profile_name ON skills(profile_id, name);
     """)
     conn.commit()
 
@@ -202,25 +192,29 @@ def init_db():
         """)
         conn.commit()
     except Exception as e:
-        logger.warning("FTS5 not available: %s", e)
+        logger.warning(
+            "FTS5 not available: %s. Full-text search on applications and companies "
+            "will not work. To enable, use a SQLite build with FTS5 support "
+            "(bundled with most standard Python distributions).", e
+        )
 
     # Ensure hash indexes exist on tables used for lookups
     conn.execute("PRAGMA optimize")
 
     cur = conn.execute("SELECT COUNT(*) FROM users")
     if cur.fetchone()[0] == 0:
-        admin_pass = os.environ.get("PATHWISE_ADMIN_PASSWORD")
-        if not admin_pass:
-            raise RuntimeError(
-                "PATHWISE_ADMIN_PASSWORD environment variable must be set on first run"
+        password = os.environ.get("PATHWISE_ADMIN_PASSWORD")
+        if not password:
+            password = secrets.token_urlsafe(32)
+            logger.warning(
+                "PATHWISE_ADMIN_PASSWORD not set. Generated random admin password: %s. "
+                "Set PATHWISE_ADMIN_PASSWORD environment variable to use a custom password.",
+                password,
             )
-        if HAS_BCRYPT:
-            pw_hash = bcrypt.hashpw(admin_pass.encode(), bcrypt.gensalt()).decode()
-        else:
-            pw_hash = admin_pass
-            logger.warning("bcrypt not available, storing admin password insecurely")
+        salt = secrets.token_hex(16)
+        _hash = salt + ":" + hashlib.sha256((salt + password).encode()).hexdigest()
         conn.execute("INSERT INTO users (email, password_hash) VALUES (?, ?)",
-                     ("admin@pathwise.local", pw_hash))
+                     ("admin@pathwise.local", _hash))
         conn.commit()
 
     cur = conn.execute("SELECT COUNT(*) FROM profiles")
@@ -229,8 +223,9 @@ def init_db():
 
 
 def _seed_default_profile(conn):
-    conn.execute("INSERT OR IGNORE INTO profiles (name, type) VALUES (?, ?)", ("Default Profile", "professional"))
-    profile_id = conn.execute("SELECT id FROM profiles LIMIT 1").fetchone()[0]
+    conn.execute("INSERT OR IGNORE INTO profiles (name, type, is_default) VALUES (?, ?, ?)",
+                 ("Default Profile", "professional", 1))
+    profile_id = conn.execute("SELECT id FROM profiles WHERE is_default=1 LIMIT 1").fetchone()[0]
     conn.execute("INSERT OR IGNORE INTO personal_info (profile_id, first_name, email, phone, city, country) VALUES (?, ?, ?, ?, ?, ?)",
                  (profile_id, "", "", "", "", ""))
     conn.commit()
