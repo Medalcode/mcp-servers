@@ -1,9 +1,10 @@
 import os
+import sys
 import logging
 from pathlib import Path
 from mcp.server.fastmcp import FastMCP
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+logging.basicConfig(stream=sys.stderr, level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
 
 mcp = FastMCP("Filesystem MCP")

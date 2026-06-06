@@ -1,4 +1,5 @@
 import logging
+import sys
 from mcp.server.fastmcp import FastMCP
 from database import init_db
 import tools.profile_tools
@@ -9,7 +10,7 @@ import tools.cv_tools
 import tools.auto_apply_tools
 import tools.interview_tools
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(stream=sys.stderr, level=logging.INFO)
 logger = logging.getLogger("pathwise")
 
 mcp = FastMCP("Pathwise")

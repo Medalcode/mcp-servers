@@ -3,24 +3,22 @@ import logging
 import os
 import secrets
 import sqlite3
-from contextvars import ContextVar
+import threading
 from pathlib import Path
 from database.config import DB_PATH
 
 logger = logging.getLogger(__name__)
 
-_db_conn: ContextVar[sqlite3.Connection | None] = ContextVar('db_connection', default=None)
+_local = threading.local()
 
 
 def get_connection() -> sqlite3.Connection:
-    conn = _db_conn.get()
-    if conn is None:
-        conn = sqlite3.connect(DB_PATH)
-        conn.row_factory = sqlite3.Row
-        conn.execute("PRAGMA journal_mode=WAL")
-        conn.execute("PRAGMA foreign_keys=ON")
-        _db_conn.set(conn)
-    return conn
+    if not hasattr(_local, "conn"):
+        _local.conn = sqlite3.connect(DB_PATH, timeout=30.0)
+        _local.conn.row_factory = sqlite3.Row
+        _local.conn.execute("PRAGMA journal_mode=WAL")
+        _local.conn.execute("PRAGMA foreign_keys=ON")
+    return _local.conn
 
 
 def init_db():

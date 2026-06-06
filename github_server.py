@@ -1,4 +1,5 @@
 import logging
+import sys
 import os
 from functools import wraps
 
@@ -6,7 +7,7 @@ import github
 from github import Github, Auth
 from mcp.server.fastmcp import FastMCP
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+logging.basicConfig(stream=sys.stderr, level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
 
 mcp = FastMCP("GitHub MCP")

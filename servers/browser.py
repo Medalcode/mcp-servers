@@ -1,6 +1,7 @@
 import atexit
 import ipaddress
 import logging
+import sys
 import os
 import base64
 import re
@@ -275,6 +276,7 @@ def engine_info() -> str:
 
 def main():
     logging.basicConfig(
+        stream=sys.stderr,
         level=logging.INFO,
         format="%(asctime)s %(levelname)s %(name)s %(message)s",
         datefmt="%H:%M:%S",

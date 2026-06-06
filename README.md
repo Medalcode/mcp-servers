@@ -27,6 +27,13 @@ pip install medalcode-mcp-servers
 
 ## Quick Start
 
+1. Copia el archivo de ejemplo para configurar tus variables de entorno:
+```bash
+cp .env.example .env
+```
+2. Edita el archivo `.env` con tus credenciales.
+3. Ejecuta los servidores:
+
 ```bash
 # Todos los servidores se instalan como comandos CLI:
 browsermcp      # Browser automation
@@ -41,7 +48,21 @@ python github_server.py
 python filesystem_server.py
 ```
 
+## Seguridad
+
+- **bcrypt** para passwords de administrador (fallback SHA-256 si no disponible)
+- **DNS rebinding prevention**: re-validación de IP post-redirect
+- **run_script sandbox**: bloquea fetch/XHR/WebSocket en scripts inyectados
+- **Path traversal protegido**: todos los servers validan rutas contra directorios permitidos
+- **SQL injection prevenido**: parámetros parametrizados + CHECK constraints
+- **Atomic writes**: credenciales escritas via tempfile + rename
+- **Rate limiting**: detección y backoff automático en LinkedIn
+- **Protección de Protocolo MCP**: Salida de logs dirigida a `stderr` para evitar corrupciones en el canal JSON-RPC (`stdout`).
+- **Concurrencia DB (Thread-Safe)**: Manejo de conexiones SQLite aisladas por hilo (thread-local) con modo WAL habilitado.
+
 ## Tests — 113 tests, todos pasando
+
+El proyecto cuenta con una suite de pruebas utilizando `pytest` y `pytest-asyncio`. Las pruebas incluyen fixtures automatizados con bases de datos en memoria para no afectar el entorno local.
 
 ```bash
 pytest tests/ -v

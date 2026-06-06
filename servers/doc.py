@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import sys
 from pathlib import Path
 
 from mcp.server.fastmcp import FastMCP
@@ -9,7 +10,7 @@ from docmcp.reader import PDFReader
 from docmcp.manipulator import PDFManipulator
 from docmcp.generator import PDFGenerator
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(stream=sys.stderr, level=logging.INFO)
 logger = logging.getLogger("docmcp")
 
 mcp = FastMCP("DocMCP")
