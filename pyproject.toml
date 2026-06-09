@@ -38,6 +38,18 @@ dependencies = [
     "bcrypt>=4.0.0",
 ]
 
+[project.optional-dependencies]
+duckdb = ["duckdb>=1.0.0"]
+github = ["pygithub>=2.0.0"]
+email = ["google-api-python-client>=2.0.0", "google-auth-oauthlib>=1.0.0"]
+test = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.24.0",
+]
+all = [
+    "medalcode-mcp-servers[duckdb,github,email]",
+]
+
 [project.urls]
 Homepage = "https://github.com/Medalcode/mcp-servers"
 Repository = "https://github.com/Medalcode/mcp-servers"
@@ -51,15 +63,14 @@ docmcp = "servers.doc:main"
 linkedinmcp = "servers.linkedin:main"
 pathwise = "servers.pathwise:main"
 pathwise-pipeline = "tools.pipeline.main:main"
+memorymcp = "servers.memory:main"
+githubmcp = "servers.github_mcp:main"
+databasemcp = "servers.database_mcp:main"
+emailmcp = "servers.email_mcp:main"
+tasktracker = "servers.task_tracker:main"
 
 [tool.hatch.build.targets.wheel]
-packages = ["servers", "engines", "router", "router.providers", "scrapers", "docmcp", "database", "database.repos", "tools", "tools.pipeline", "services", "services.scrapers"]
-
-[project.optional-dependencies]
-test = [
-    "pytest>=8.0.0",
-    "pytest-asyncio>=0.24.0",
-]
+packages = ["servers", "engines", "router", "router.providers", "scrapers", "docmcp", "database", "database.repos", "tools", "tools.pipeline", "services", "services.scrapers", "memory_engine", "gh_mcp", "db_mcp", "email_mcp", "task_tracker"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

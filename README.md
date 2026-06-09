@@ -4,7 +4,7 @@
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Tests](https://img.shields.io/badge/tests-113%20passing-brightgreen.svg)]()
 
-Monorepo unificado con 6 servidores MCP (Model Context Protocol) + herramientas de carrera Pathwise.
+Monorepo unificado con 11 servidores MCP (Model Context Protocol) + herramientas de carrera Pathwise.
 
 ## Servers
 
@@ -16,6 +16,11 @@ Monorepo unificado con 6 servidores MCP (Model Context Protocol) + herramientas 
 | **DocMCP** | `docmcp` | Manipulación de PDFs: leer, mergear, dividir, comprimir, generar |
 | **LinkedInMCP** | `linkedinmcp` | Búsqueda y aplicación en LinkedIn (solo env vars, sin credenciales en disco) |
 | **Pathwise** | `pathwise` | Plataforma de carrera: perfiles, CV, cover letters, auto-apply |
+| **MemoryMCP** | `memorymcp` | Memoria persistente: guarda contexto, decisiones y patrones entre sesiones |
+| **GitHubMCP** | `githubmcp` | GitHub: issues, PRs, branches, workflows, commits desde el chat |
+| **DatabaseMCP** | `databasemcp` | Consultas SQLite y DuckDB con resultados formateados en tabla |
+| **EmailMCP** | `emailmcp` | Gmail: buscar, leer, enviar, borradores, labels, threads |
+| **TaskTracker** | `tasktracker` | TODO persistente con prioridades, deadlines, dependencias y brainstorm |
 | **GitHub** | `python github_server.py` | API de GitHub: repos, issues, PRs (con paginación hasta 200) |
 | **Filesystem** | `python filesystem_server.py` | Operaciones de archivos locales con chunked reading |
 
@@ -42,6 +47,11 @@ scrapemcp       # Web scraping
 docmcp          # Document processing
 linkedinmcp     # LinkedIn automation
 pathwise        # Career platform
+memorymcp       # Persistent memory
+githubmcp       # GitHub management
+databasemcp     # SQLite/DuckDB queries
+emailmcp        # Gmail client
+tasktracker     # Task management
 
 # GitHub y Filesystem se ejecutan directamente:
 python github_server.py
@@ -95,7 +105,7 @@ pytest tests/ -v
 
 ```
 mcp-servers/
-├── servers/            # Entry points (browser, route, scrape, doc, linkedin, pathwise)
+├── servers/            # Entry points (browser, route, scrape, doc, linkedin, pathwise, memory, github, database, email, task)
 ├── engines/            # Browser engines (compartido con BrowserMCP)
 ├── router/             # AI Router + providers
 │   └── providers/      # Google, Groq, Cerebras
@@ -103,6 +113,11 @@ mcp-servers/
 ├── docmcp/             # PDF processing (reader, manipulator, generator)
 ├── database/           # SQLite persistence
 │   └── repos/          # applications, profiles
+├── memory_engine/      # Memory/Knowledge graph (SQLite + search)
+├── gh_mcp/             # GitHub API client
+├── db_mcp/             # SQLite + DuckDB query engine
+├── email_mcp/          # Gmail API client
+├── task_tracker/       # Persistent task manager with deps
 ├── tools/              # MCP tool definitions (profile, job, application, cover letter, CV, auto-apply, interview)
 ├── services/           # Business logic (AI, CV, form filler, job search, company research)
 │   └── scrapers/       # Job board scrapers (ChileTrabajos, Computrabajo, etc.)
