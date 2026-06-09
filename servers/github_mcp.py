@@ -1,4 +1,5 @@
 from mcp.server.fastmcp import FastMCP
+from dotenv import load_dotenv
 from gh_mcp.client import (
     get_repo, list_issues, get_issue, create_issue, close_issue,
     list_prs, get_pr, merge_pr, list_branches,
@@ -69,6 +70,7 @@ async def commits(repo: str, branch: str = "main", limit: int = 10) -> str:
 
 
 def main():
+    load_dotenv()
     mcp.run(transport="stdio")
 
 

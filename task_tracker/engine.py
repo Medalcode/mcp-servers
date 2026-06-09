@@ -3,7 +3,6 @@ import os
 import json
 import time
 from pathlib import Path
-from datetime import datetime, date
 from typing import Any
 
 def _ensure_db():
@@ -139,7 +138,7 @@ def add_dependency(task_id: int, depends_on: int) -> str:
         return f"Task #{task_id} now depends on task #{depends_on}"
     except sqlite3.IntegrityError:
         conn.close()
-        return f"Dependency already exists or would create a cycle"
+        return "Dependency already exists or would create a cycle"
 
 
 def remove_dependency(task_id: int, depends_on: int) -> str:

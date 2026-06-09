@@ -1,7 +1,6 @@
 import pytest
 from bs4 import BeautifulSoup
 from scrapers.page import PageScraper
-from scrapers.base import ScrapeResult
 
 
 class MockPageScraper(PageScraper):

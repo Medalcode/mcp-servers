@@ -1,4 +1,3 @@
-import base64
 import logging
 import shutil
 import time
@@ -12,7 +11,7 @@ from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import TimeoutException, NoSuchElementException, WebDriverException
+from selenium.common.exceptions import TimeoutException, WebDriverException
 
 from engines.base import BrowserEngine, PageResult, LinkInfo, FormInfo, FormField
 

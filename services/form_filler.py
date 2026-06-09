@@ -182,13 +182,8 @@ def generate_answer(question: FormQuestion, profile: dict) -> str:
     email = pi.get("email", "")
     phone = pi.get("phone", "")
     city = pi.get("city", "")
-    first = pi.get("firstName") or pi.get("first_name", "")
-    last = pi.get("lastName") or pi.get("last_name", "")
-    name = f"{first} {last}".strip() or ""
     skills = ", ".join(profile.get("skills", [])[:10])
     current_title = pi.get("currentTitle") or pi.get("current_title", "")
-    summary = pi.get("summary", "")
-    
     exp_lines = []
     for e in profile.get("experience", [])[:3]:
         desc = (e.get("description") or "")[:200]
@@ -212,13 +207,13 @@ def generate_answer(question: FormQuestion, profile: dict) -> str:
         (r'(carrera|estudiando|semestre|año|estudios|formación académica|casa de estudios|universidad)',
          f"{edu_text}" if edu_text else "Formación según perfil."),
         (r'(horas|disponibilidad|práctica|full time|comenzar|inicio|jornada)',
-         f"Disponibilidad según lo requerido."),
+         "Disponibilidad según lo requerido."),
         (r'(teléfono|correo|contacto|número|email)',
          f"{'Teléfono: ' + phone if phone else ''}{' | ' if phone and email else ''}{'Correo: ' + email if email else 'Datos de contacto en el perfil.'}"),
         (r'(experiencia|trayectoria|años)',
          f"{exp_text}" if exp_text else "Experiencia detallada en el perfil."),
         (r'(motivación|interés|por qué)',
-         f"Me interesa esta oportunidad para aplicar mis conocimientos y seguir creciendo profesionalmente."),
+         "Me interesa esta oportunidad para aplicar mis conocimientos y seguir creciendo profesionalmente."),
         (r'(comuna|residencia|vives|vive|domicilio|lugar)',
          f"{'Santiago, ' if city else ''}{city}".strip() or "Según perfil."),
         (r'(portfolio|github|linkedin|enlace)',

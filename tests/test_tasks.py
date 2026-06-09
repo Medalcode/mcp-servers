@@ -1,5 +1,4 @@
 import pytest
-import os
 from task_tracker.engine import create, list_tasks, complete, delete, get_task, stats, add_dependency, remove_dependency
 
 

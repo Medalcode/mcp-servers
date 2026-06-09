@@ -137,9 +137,11 @@ def list_recent_commits(repo: str, branch: str = "main", limit: int = 10) -> str
     limit = min(limit, 200)
     r = gh.get_repo(repo)
     commits = _paginate(r.get_commits(sha=branch), limit)
-    return "\n".join(
-        f"{c.sha[:8]} {c.commit.message.split("\n")[0]} - {c.commit.author.name}" for c in commits
-    )
+    lines = []
+    for c in commits:
+        first_line = c.commit.message.split("\n")[0]
+        lines.append(f"{c.sha[:8]} {first_line} - {c.commit.author.name}")
+    return "\n".join(lines)
 
 
 if __name__ == "__main__":

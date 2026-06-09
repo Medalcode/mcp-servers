@@ -115,12 +115,6 @@ class StaticEngine(BrowserEngine):
     def fill(self, selector: str, value: str) -> str:
         return "Form filling requires a browser engine (Selenium or Playwright)"
 
-    def click_by_text(self, text: str) -> str:
-        return "Click by text requires a browser engine (Selenium or Playwright)"
-
-    def run_script(self, script: str) -> str:
-        return "JavaScript execution requires a browser engine (Selenium or Playwright)"
-
     def scroll(self, direction: str) -> str:
         return "Scrolling requires a browser engine (Selenium or Playwright)"
 

@@ -1,4 +1,5 @@
 from mcp.server.fastmcp import FastMCP
+from dotenv import load_dotenv
 from db_mcp.engine import (
     query_sqlite, query_duckdb, list_sqlite_tables,
     describe_sqlite_table, list_duckdb_tables,
@@ -33,6 +34,7 @@ async def duckdb_tables(path: str = ":memory:") -> str:
 
 
 def main():
+    load_dotenv()
     mcp.run(transport="stdio")
 
 

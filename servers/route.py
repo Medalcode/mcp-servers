@@ -1,5 +1,5 @@
-import json
 from mcp.server.fastmcp import FastMCP
+from dotenv import load_dotenv
 
 from router.engine import RouterEngine
 from router.models import MODELS, TASK_ROUTING
@@ -85,6 +85,7 @@ async def classify_task(prompt: str) -> str:
 
 
 def main():
+    load_dotenv()
     mcp.run(transport="stdio")
 
 

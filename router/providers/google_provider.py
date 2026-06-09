@@ -56,5 +56,5 @@ class GoogleProvider(AIProvider):
             raise ProviderError(self.name, str(e))
         try:
             return data["candidates"][0]["content"]["parts"][0]["text"]
-        except (KeyError, IndexError) as e:
+        except (KeyError, IndexError):
             raise ProviderError(self.name, f"Unexpected response: {json.dumps(data, indent=2)[:300]}")

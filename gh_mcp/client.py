@@ -84,7 +84,7 @@ async def list_issues(repo: str, state: str = "open", limit: int = 20) -> str:
             return f"No {state} issues found in {repo}"
         lines = [f"# Issues ({state}) — {repo}", ""]
         for issue in data:
-            labels = ", ".join(l["name"] for l in issue.get("labels", []))
+            labels = ", ".join(lb["name"] for lb in issue.get("labels", []))
             label_str = f" [{labels}]" if labels else ""
             lines.append(f"- #{issue['number']} {issue['title']}{label_str}")
             lines.append(f"  by {issue['user']['login']} — {issue['state']}")
@@ -98,7 +98,7 @@ async def get_issue(repo: str, issue_number: int) -> str:
         return "Error: GITHUB_TOKEN not configured"
     try:
         data = await _get(f"/repos/{repo}/issues/{issue_number}")
-        labels = ", ".join(l["name"] for l in data.get("labels", []))
+        labels = ", ".join(lb["name"] for lb in data.get("labels", []))
         lines = [
             f"# #{data['number']} {data['title']}",
             f"State: {data['state']}  |  Author: {data['user']['login']}",
@@ -119,7 +119,7 @@ async def create_issue(repo: str, title: str, body: str = "", labels: str = "") 
     try:
         data: dict[str, Any] = {"title": title, "body": body}
         if labels:
-            data["labels"] = [l.strip() for l in labels.split(",")]
+            data["labels"] = [lb.strip() for lb in labels.split(",")]
         result = await _post(f"/repos/{repo}/issues", data)
         return f"Created issue #{result['number']}: {result['html_url']}"
     except Exception as e:

@@ -29,9 +29,9 @@ def main():
     profile_parser = sub.add_parser("profile", help="Show current profile")
     profile_parser.add_argument("--id", type=int, help="Profile ID")
 
-    stats_parser = sub.add_parser("stats", help="Show application statistics")
+    sub.add_parser("stats", help="Show application statistics")
 
-    init_parser = sub.add_parser("init", help="Initialize database and default profile")
+    sub.add_parser("init", help="Initialize database and default profile")
 
     args = parser.parse_args()
 

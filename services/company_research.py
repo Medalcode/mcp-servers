@@ -1,7 +1,6 @@
 import httpx
 import json
 import logging
-from urllib.parse import urlparse
 from database import get_connection
 
 logger = logging.getLogger(__name__)

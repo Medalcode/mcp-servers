@@ -1,4 +1,5 @@
 from mcp.server.fastmcp import FastMCP
+from dotenv import load_dotenv
 from task_tracker.engine import (
     create, list_tasks, update, complete, delete,
     add_dependency, remove_dependency, get_task, stats, brainstorm,
@@ -62,6 +63,7 @@ async def task_brainstorm(title: str, ideas: str) -> str:
 
 
 def main():
+    load_dotenv()
     mcp.run(transport="stdio")
 
 

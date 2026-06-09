@@ -1,7 +1,5 @@
 import pytest
 from unittest.mock import patch, AsyncMock
-import json
-import os
 from services.ai_provider import parse_cv_with_ai, generate_cover_letter, generate_personas
 
 # Habilitar ROUTEMCP para los tests

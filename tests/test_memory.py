@@ -1,5 +1,4 @@
 import pytest
-import os
 from memory_engine.store import remember, recall, search, forget, list_by_category, stats, get_categories
 
 

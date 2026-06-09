@@ -63,7 +63,7 @@ def parse_cv_text(text: str) -> dict:
         "skills": [],
     }
 
-    lines = [l.strip() for l in text.replace("\r\n", "\n").split("\n") if l.strip()]
+    lines = [ln.strip() for ln in text.replace("\r\n", "\n").split("\n") if ln.strip()]
 
     email_m = re.search(r"[\w\.-]+@[\w\.-]+\.\w+", text)
     if email_m:

@@ -1,6 +1,5 @@
 import os
 import base64
-import json
 from email.message import EmailMessage
 from typing import Any
 

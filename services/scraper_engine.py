@@ -54,7 +54,6 @@ async def _call_scrapemcp(query: str, location: str = "Chile") -> ScraperResult:
             })
             if resp.status_code == 200:
                 data = resp.json()
-                text = data.get("text", "")
                 links = data.get("links", [])
                 jobs = [{"title": link.get("text", query), "url": link.get("href", ""),
                          "company": "", "location": location, "source": "ScrapeMCP",

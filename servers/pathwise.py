@@ -1,6 +1,7 @@
 import logging
 import sys
 from mcp.server.fastmcp import FastMCP
+from dotenv import load_dotenv
 from database import init_db
 import tools.profile_tools
 import tools.job_tools
@@ -28,6 +29,7 @@ tools.interview_tools.register_tools(mcp)
 logger.info("Pathwise MCP server initialized with 7 tool modules")
 
 def main():
+    load_dotenv()
     mcp.run(transport="stdio")
 
 

@@ -1,5 +1,5 @@
 import pytest
-from database import init_db, get_connection
+from database import init_db
 from database.repos import applications as app_repo
 from database.repos import profiles as profile_repo
 
@@ -86,6 +86,5 @@ def test_profile_default():
 def test_cannot_delete_last_profile():
     init_db()
     profiles = profile_repo.list_profiles(1)
-    count_before = profiles
     with pytest.raises(ValueError, match="Cannot delete the only profile"):
         profile_repo.delete_profile(profiles[0]["id"], 1)

@@ -6,6 +6,7 @@ import sys
 import time
 import signal
 from mcp.server.fastmcp import FastMCP
+from dotenv import load_dotenv
 
 logger = logging.getLogger(__name__)
 
@@ -424,6 +425,7 @@ def main():
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     atexit.register(lambda: loop.run_until_complete(_browser_stop()))
+    load_dotenv()
     mcp.run(transport="stdio")
 
 

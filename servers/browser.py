@@ -9,6 +9,7 @@ import socket
 import threading
 from urllib.parse import urlparse
 from mcp.server.fastmcp import FastMCP
+from dotenv import load_dotenv
 
 from engines.static import StaticEngine
 from engines.playwright_engine import PlaywrightEngine
@@ -143,7 +144,7 @@ _BLOCKED_JS_PATTERNS = [
 def _validate_script(script: str) -> None:
     for pattern in _BLOCKED_JS_PATTERNS:
         if re.search(pattern, script):
-            raise ValueError(f"Script blocked: contains dangerous API")
+            raise ValueError("Script blocked: contains dangerous API")
 
 
 def _engine_prefix(engine) -> str:
@@ -281,6 +282,7 @@ def main():
         format="%(asctime)s %(levelname)s %(name)s %(message)s",
         datefmt="%H:%M:%S",
     )
+    load_dotenv()
     mcp.run(transport="stdio")
 
 

@@ -4,7 +4,6 @@ import os
 import secrets
 import sqlite3
 import threading
-from pathlib import Path
 from database.config import DB_PATH
 
 logger = logging.getLogger(__name__)

@@ -1,4 +1,3 @@
-import re
 import urllib.parse
 import httpx
 import logging

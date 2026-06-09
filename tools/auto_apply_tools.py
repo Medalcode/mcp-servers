@@ -4,7 +4,7 @@ from services.form_filler import (
     parse_forms_json, generate_answer, generate_radio_answer,
     generate_select_answer, QuestionType, FormQuestion
 )
-from services.ai_provider import _call_routemcp
+from services.ai_provider import _call_routemcp, _clean_json
 from database.repos import profiles as profile_repo
 import asyncio
 import json
@@ -14,7 +14,6 @@ import re
 import signal
 import sys
 import time
-import uuid
 from urllib.parse import urlparse
 
 logger = logging.getLogger(__name__)
@@ -176,7 +175,6 @@ async def _should_apply(page_text: str, profile: dict) -> tuple[bool, str]:
 
     skills = profile.get("skills", [])
     exp = profile.get("experience", [])
-    pi = profile.get("personalInfo", {})
     edu = profile.get("education", [])
     current_edu = ""
     for e in edu:
@@ -502,7 +500,7 @@ def register_tools(mcp: FastMCP):
             return "No profile found."
 
         # Skill check
-        page = await _call_browser_tool("navigate", {"url": form_url})
+        await _call_browser_tool("navigate", {"url": form_url})
         await asyncio.sleep(3)
 
         page_text = await _call_browser_tool("run_script", {"script": "return (document.body.textContent || '').slice(0, 3000)"})
@@ -620,7 +618,7 @@ def register_tools(mcp: FastMCP):
             results.append(f"  {title[:45]:45s} {status}")
 
         success_count = sum(1 for r in results if "APPLIED" in r)
-        return f"=== BATCH APPLY RESULTS ===\n" + "\n".join(results) + f"\n\n{success_count}/{len(urls)} exitosas."
+        return "=== BATCH APPLY RESULTS ===\n" + "\n".join(results) + f"\n\n{success_count}/{len(urls)} exitosas."
 
 
     @mcp.tool()

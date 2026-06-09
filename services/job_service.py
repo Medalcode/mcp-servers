@@ -1,9 +1,8 @@
 import asyncio
 import json
 import logging
-import re
 
-from services.scraper_engine import search_all, ScraperResult
+from services.scraper_engine import search_all
 from services.scrapers import (
     scan_chiletrabajos, scan_computrabajo,
     scan_getonboard, scan_remoteok,

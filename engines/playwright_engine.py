@@ -1,10 +1,8 @@
 # NOTE: Playwright is unavailable on Ubuntu 26.04. Use Selenium engine instead (BROWSER_ENGINE=selenium).
 
 import asyncio
-import base64
-import concurrent.futures
 import re
-from urllib.parse import urljoin, urlparse
+from urllib.parse import urlparse
 
 from engines.base import BrowserEngine, PageResult, LinkInfo, FormInfo, FormField
 
@@ -86,8 +84,8 @@ class PlaywrightEngine(BrowserEngine):
             }"""))
             base_netloc = urlparse(self._page.url).netloc
             return [
-                LinkInfo(href=l["href"], text=l["text"], is_internal=urlparse(l["href"]).netloc == base_netloc)
-                for l in links
+                LinkInfo(href=ln["href"], text=ln["text"], is_internal=urlparse(ln["href"]).netloc == base_netloc)
+                for ln in links
             ]
         except Exception:
             return []

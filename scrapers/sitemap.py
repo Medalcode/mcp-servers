@@ -1,6 +1,5 @@
 import os
 import re
-from urllib.parse import urljoin
 import xml.etree.ElementTree as ET
 
 from scrapers.base import BaseScraper, ScrapeResult

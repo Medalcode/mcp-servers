@@ -1,4 +1,5 @@
 from mcp.server.fastmcp import FastMCP
+from dotenv import load_dotenv
 from memory_engine.store import (
     remember, recall, search, forget, list_by_category,
     save_context, get_context, stats, get_categories,
@@ -57,6 +58,7 @@ async def get_session_context(session_id: str, limit: int = 10) -> str:
 
 
 def main():
+    load_dotenv()
     mcp.run(transport="stdio")
 
 

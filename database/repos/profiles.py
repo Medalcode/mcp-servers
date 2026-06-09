@@ -1,4 +1,3 @@
-import re
 from database import get_connection
 
 def _to_camel(s: str) -> str:

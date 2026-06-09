@@ -1,6 +1,5 @@
 import os
 import pytest
-import tempfile
 
 def pytest_configure(config):
     """Configure test environment before any collection."""

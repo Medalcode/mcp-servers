@@ -1,7 +1,6 @@
 from mcp.server import FastMCP
 from services.cv_service import parse_pdf, parse_cv_text
 from services.ai_provider import parse_cv_with_ai
-from database.repos import profiles as profile_repo
 
 def register_tools(mcp: FastMCP):
     @mcp.tool()

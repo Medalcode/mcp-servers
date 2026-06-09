@@ -42,7 +42,7 @@ async def retry_ask(provider_name: str, client: httpx.AsyncClient, url: str, pay
                 continue
             resp.raise_for_status()
             return resp.json()
-        except (httpx.TimeoutException, httpx.NetworkError) as e:
+        except (httpx.TimeoutException, httpx.NetworkError):
             if attempt == _MAX_RETRIES - 1:
                 raise
             await asyncio.sleep(_RETRY_DELAYS[attempt])

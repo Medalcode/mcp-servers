@@ -63,5 +63,5 @@ class CerebrasProvider(AIProvider):
             raise ProviderError(self.name, str(e))
         try:
             return data["choices"][0]["message"]["content"]
-        except (KeyError, IndexError) as e:
+        except (KeyError, IndexError):
             raise ProviderError(self.name, f"Unexpected response: {json.dumps(data, indent=2)[:300]}")

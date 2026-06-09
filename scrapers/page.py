@@ -1,5 +1,4 @@
 import re
-from urllib.parse import urljoin
 
 from scrapers.base import BaseScraper, ScrapeResult
 

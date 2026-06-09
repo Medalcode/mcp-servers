@@ -1,6 +1,5 @@
 import pytest
 import tempfile
-from pathlib import Path
 from db_mcp.engine import query_sqlite, list_sqlite_tables, describe_sqlite_table
 
 

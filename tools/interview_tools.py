@@ -1,11 +1,10 @@
 from datetime import datetime, timedelta
 from mcp.server import FastMCP
-from services.company_research import research_company, get_company_insights
+from services.company_research import research_company as rc, get_company_insights
 from services.ai_provider import _call_routemcp
 from database.repos import applications as app_repo
 from database.repos import profiles as profile_repo
 from database import get_connection
-import json
 import logging
 
 logger = logging.getLogger(__name__)
@@ -25,8 +24,7 @@ def register_tools(mcp: FastMCP):
         if not app:
             return f"Application {application_id} not found."
 
-        from services.company_research import research_company
-        company_info = await research_company(app["company"])
+        company_info = await rc(app["company"])
 
         profile = profile_repo.get_default_profile()
         profile_text = ""

@@ -1,5 +1,6 @@
 import json
 from mcp.server.fastmcp import FastMCP
+from dotenv import load_dotenv
 
 from scrapers.page import PageScraper
 from scrapers.table import TableScraper
@@ -92,6 +93,7 @@ def export(data: str, format: str = "csv") -> str:
 
 
 def main():
+    load_dotenv()
     mcp.run(transport="stdio")
 
 

@@ -5,6 +5,7 @@ import sys
 from pathlib import Path
 
 from mcp.server.fastmcp import FastMCP
+from dotenv import load_dotenv
 
 from docmcp.reader import PDFReader
 from docmcp.manipulator import PDFManipulator
@@ -200,6 +201,7 @@ def generate_text(text: str, output: str, title: str = "") -> str:
 
 
 def main():
+    load_dotenv()
     mcp.run(transport="stdio")
 
 
