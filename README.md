@@ -2,7 +2,8 @@
 
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue.svg)]()
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-113%20passing-brightgreen.svg)]()
+[![Tests](https://img.shields.io/badge/tests-134%20passing-brightgreen.svg)]()
+[![Lint](https://img.shields.io/badge/lint-ruff-passing-brightgreen.svg)]()
 
 Monorepo unificado con 11 servidores MCP (Model Context Protocol) + herramientas de carrera Pathwise.
 
@@ -91,6 +92,9 @@ pytest tests/ -v
 | Exporters | 7 | CSV, Markdown, sanitización formula injection |
 | Tools | 5 | Integración apps + perfiles |
 | URL Validation | 11 | SSRF, IPs privadas, localhost, dominios internos |
+| Memory | 8 | CRUD, búsqueda, categorías, stats |
+| Tasks | 8 | CRUD, dependencias, stats |
+| Database MCP | 3 | SQLite queries, tablas, describe |
 
 ## Tech Stack
 
@@ -99,7 +103,7 @@ pytest tests/ -v
 - **Engines**: Selenium, Playwright, BeautifulSoup, httpx
 - **AI Providers**: Google Gemini, Groq, Cerebras
 - **PDF**: PyMuPDF, ReportLab, pypdf
-- **DB**: SQLite con FTS5
+- **DB**: SQLite con FTS5, DuckDB (opcional)
 
 ## Project Structure
 
@@ -121,7 +125,7 @@ mcp-servers/
 ├── tools/              # MCP tool definitions (profile, job, application, cover letter, CV, auto-apply, interview)
 ├── services/           # Business logic (AI, CV, form filler, job search, company research)
 │   └── scrapers/       # Job board scrapers (ChileTrabajos, Computrabajo, etc.)
-├── tests/              # 113 tests
+├── tests/              # 134 tests
 ├── github_server.py    # GitHub API server
 ├── filesystem_server.py
 └── pyproject.toml
@@ -129,14 +133,30 @@ mcp-servers/
 
 ## Recent Improvements
 
+### 2026-06 — 5 nuevos servidores MCP + limpieza masiva
+- **MemoryMCP**: memoria persistente con SQLite (key-value, búsqueda, contextos por sesión)
+- **GitHubMCP**: issues, PRs, branches, workflows, commits desde el chat
+- **DatabaseMCP**: consultas SQLite y DuckDB con resultados formateados
+- **EmailMCP**: Gmail (buscar, leer, enviar, borradores, labels, threads)
+- **TaskTracker**: TODO persistente con prioridades, deadlines, dependencias y brainstorm
+
 ### Seguridad
+- **5 secrets hardcodeados eliminados** de opencode.jsonc → ahora vía env vars + `.env`
+- `load_dotenv()` agregado a los 11 servidores
+- `.env.example` con todas las variables documentadas
 - Credenciales LinkedIn eliminadas del disco — solo env vars
 - Passwords con salted SHA256 (no más hash sin sal)
 - `.gitignore` excluye `data/` para prevenir filtraciones
 
+### Calidad de código
+- **64 lint errors → 0** (ruff): imports inusados, vars sin usar, f-strings, redefiniciones
+- Métodos duplicados `click_by_text`/`run_script` eliminados de engines
+- `github_server.py` arreglado para compatibilidad Python 3.11
+- `_clean_json` undefined corregido en auto_apply_tools
+- CI actualizado: `py_compile` → `ruff check` + `pytest`
+
 ### Confiabilidad
 - `click_by_text` y `run_script` reparados en Playwright (estaban rotos)
-- Método duplicado `click_by_text` eliminado de Selenium
 - Fallback `_should_apply` ahora omite postulación si falla AI check
 - Caché in-memory con TTL en scrapers (300s default)
 - Rate limiting integrado en scraper base
@@ -148,7 +168,7 @@ mcp-servers/
 - Salario configurable via `DEFAULT_SALARY` env var
 
 ### Testing
-- 54 tests nuevos (113 totales)
+- 134 tests totales (+21 nuevos): memory, tasks, db_mcp
 - Cobertura: static engine, scrapers, exporters, tools, integración
 
 ### Arquitectura
