@@ -85,8 +85,13 @@ async def classify_task(prompt: str) -> str:
 
 
 def main():
+    import os
     load_dotenv()
-    mcp.run(transport="stdio")
+    transport = os.environ.get("MCP_TRANSPORT", "stdio")
+    if transport == "sse":
+        mcp.run(transport="sse", host=os.environ.get("MCP_HOST", "0.0.0.0"), port=int(os.environ.get("MCP_PORT", "8080")))
+    else:
+        mcp.run(transport="stdio")
 
 
 if __name__ == "__main__":

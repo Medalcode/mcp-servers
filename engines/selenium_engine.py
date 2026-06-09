@@ -62,6 +62,19 @@ class SeleniumEngine(BrowserEngine):
             except WebDriverException:
                 logger.warning("Selenium driver session lost, reconnecting...")
                 self._driver = None
+
+        remote_url = os.environ.get("SELENIUM_REMOTE_URL")
+        if remote_url:
+            opts = Options()
+            opts.add_argument("--no-sandbox")
+            opts.add_argument("--disable-dev-shm-usage")
+            opts.add_argument("--disable-gpu")
+            if os.environ.get("BROWSER_HEADLESS", "true").lower() in ("true", "1", "yes"):
+                opts.add_argument("--headless=new")
+            self._driver = webdriver.Remote(command_executor=remote_url, options=opts)
+            logger.info("Connected to remote Selenium at %s", remote_url)
+            return
+
         debug_port = os.environ.get("CHROME_DEBUG_PORT", "9226")
         debug_host = os.environ.get("CHROME_DEBUG_HOST", "127.0.0.1")
         try:

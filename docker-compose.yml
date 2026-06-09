@@ -1,0 +1,98 @@
+services:
+
+  # Standalone Chrome used by browsermcp and linkedinmcp
+  chromium:
+    image: selenium/standalone-chrome:latest
+    shm_size: "2g"
+    ports:
+      - "4444:4444"   # WebDriver endpoint
+      - "7900:7900"   # noVNC (browser preview at http://localhost:7900)
+    environment:
+      SE_NODE_MAX_SESSIONS: 5
+
+  browsermcp:
+    build: .
+    command: browsermcp
+    ports:
+      - "8001:8001"
+    environment:
+      MCP_PORT: "8001"
+      SELENIUM_REMOTE_URL: http://chromium:4444/wd/hub
+    depends_on:
+      - chromium
+
+  routemcp:
+    build: .
+    command: routemcp
+    ports:
+      - "8002:8002"
+    environment:
+      MCP_PORT: "8002"
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      CEREBRAS_API_KEY: ${CEREBRAS_API_KEY:-}
+
+  scrapemcp:
+    build: .
+    command: scrapemcp
+    ports:
+      - "8003:8003"
+    environment:
+      MCP_PORT: "8003"
+
+  docmcp:
+    build: .
+    command: docmcp
+    ports:
+      - "8004:8004"
+    volumes:
+      - ./workspace:/workspace
+    environment:
+      MCP_PORT: "8004"
+      DOCMCP_WORKDIR: /workspace
+
+  linkedinmcp:
+    build: .
+    command: linkedinmcp
+    ports:
+      - "8005:8005"
+    environment:
+      MCP_PORT: "8005"
+      LINKEDIN_EMAIL: ${LINKEDIN_EMAIL:-}
+      LINKEDIN_PASSWORD: ${LINKEDIN_PASSWORD:-}
+      SELENIUM_REMOTE_URL: http://chromium:4444/wd/hub
+    depends_on:
+      - chromium
+
+  pathwise:
+    build: .
+    command: pathwise
+    ports:
+      - "8006:8006"
+    volumes:
+      - pathwise-data:/app/database
+    environment:
+      MCP_PORT: "8006"
+
+  github:
+    build: .
+    command: python github_server.py
+    ports:
+      - "8007:8007"
+    environment:
+      MCP_PORT: "8007"
+      GITHUB_TOKEN: ${GITHUB_TOKEN}
+
+  filesystem:
+    build: .
+    command: python filesystem_server.py
+    ports:
+      - "8008:8008"
+    volumes:
+      - ./workspace:/workspace
+    environment:
+      MCP_PORT: "8008"
+      ALLOWED_PATH: /workspace
+
+volumes:
+  pathwise-data:
