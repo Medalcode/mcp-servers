@@ -24,7 +24,11 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install -e ".[dev]"
+        pip install ruff
+        pip install -e ".[test]"
 
-    - name: Check syntax
-      run: python -m py_compile servers/*.py engines/*.py router/*.py scrapers/*.py docmcp/*.py
+    - name: Lint with ruff
+      run: ruff check
+
+    - name: Test with pytest
+      run: python -m pytest tests/ -v --tb=short
