@@ -3,151 +3,15 @@ import json
 import logging
 import os
 import sys
-import time
-import signal
 from mcp.server.fastmcp import FastMCP
 from dotenv import load_dotenv
+from services.browser_client import call_tool, ensure_browser, stop_browser
 
 logger = logging.getLogger(__name__)
 
 mcp = FastMCP("LinkedIn MCP")
 
-_browser_proc = None
-_browser_proc_lock = asyncio.Lock()
-_next_req_id = 1
-_req_id_lock = asyncio.Lock()
 _linkedin_ready = False
-
-MCP_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-
-
-async def _next_id() -> int:
-    global _next_req_id
-    async with _req_id_lock:
-        cur = _next_req_id
-        _next_req_id += 1
-        return cur
-
-
-async def _consume_stderr(proc):
-    try:
-        while True:
-            line = await proc.stderr.readline()
-            if not line:
-                break
-            text = line.decode().rstrip()
-            if text:
-                logger.debug("BrowserMCP stderr: %s", text)
-    except Exception:
-        pass
-
-
-async def _read_json_response(proc, timeout=60):
-    buf = ""
-    deadline = time.monotonic() + timeout
-    while time.monotonic() < deadline:
-        remaining = deadline - time.monotonic()
-        if remaining <= 0:
-            break
-        try:
-            line = await asyncio.wait_for(proc.stdout.readline(), timeout=min(5.0, remaining))
-        except asyncio.TimeoutError:
-            continue
-        if not line:
-            break
-        buf += line.decode()
-        try:
-            return json.loads(buf)
-        except json.JSONDecodeError:
-            continue
-    raise TimeoutError("No valid JSON response from browser")
-
-
-async def _browser_call(method: str, params: dict = None, timeout: float = 120):
-    global _browser_proc
-    req_id = await _next_id()
-    req = (
-        json.dumps(
-            {
-                "jsonrpc": "2.0",
-                "id": req_id,
-                "method": "tools/call",
-                "params": {"name": method, "arguments": params or {}},
-            }
-        )
-        + "\n"
-    )
-    _browser_proc.stdin.write(req.encode())
-    await _browser_proc.stdin.drain()
-    while True:
-        resp = await _read_json_response(_browser_proc, timeout=timeout)
-        if resp.get("id") == req_id:
-            if "error" in resp:
-                raise RuntimeError(f"BrowserMCP error: {resp['error']}")
-            content = resp.get("result", {}).get("content", [])
-            texts = [c.get("text", "") for c in content if c.get("type") == "text"]
-            return "\n".join(texts)
-        logger.debug("Skipping response for id=%s (waiting for %s)", resp.get("id"), req_id)
-
-
-async def _browser_start():
-    global _browser_proc
-    async with _browser_proc_lock:
-        if _browser_proc is not None and _browser_proc.returncode is None:
-            return
-        env = {**os.environ, "BROWSER_ENGINE": "selenium", "CHROME_DEBUG_PORT": "9226"}
-        _browser_proc = await asyncio.create_subprocess_exec(
-            sys.executable,
-            "-m", "servers.browser",
-            stdin=asyncio.subprocess.PIPE,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-            cwd=MCP_DIR,
-            env=env,
-        )
-        asyncio.ensure_future(_consume_stderr(_browser_proc))
-        init_req = (
-            json.dumps(
-                {
-                    "jsonrpc": "2.0",
-                    "id": 1,
-                    "method": "initialize",
-                    "params": {
-                        "protocolVersion": "2024-11-05",
-                        "capabilities": {},
-                        "clientInfo": {"name": "linkedinmcp", "version": "0.1.0"},
-                    },
-                }
-            )
-            + "\n"
-        )
-        _browser_proc.stdin.write(init_req.encode())
-        await _browser_proc.stdin.drain()
-        resp = await _read_json_response(_browser_proc, timeout=10)
-        logger.info(
-            "BrowserMCP initialized: %s",
-            str(resp.get("result", {}))[:80] if resp else "None",
-        )
-        initialized = (
-            json.dumps({"jsonrpc": "2.0", "method": "notifications/initialized", "params": {}})
-            + "\n"
-        )
-        _browser_proc.stdin.write(initialized.encode())
-        await _browser_proc.stdin.drain()
-
-
-async def _browser_stop():
-    global _browser_proc
-    if _browser_proc is not None and _browser_proc.returncode is None:
-        try:
-            _browser_proc.send_signal(signal.SIGTERM)
-            await asyncio.wait_for(_browser_proc.wait(), timeout=10)
-        except Exception:
-            try:
-                _browser_proc.kill()
-            except Exception:
-                pass
-        _browser_proc = None
 
 
 async def _ensure_linkedin_session(email: str = None, password: str = None):
@@ -155,10 +19,10 @@ async def _ensure_linkedin_session(email: str = None, password: str = None):
     if _linkedin_ready:
         return
 
-    await _browser_start()
-    await _browser_call("navigate", {"url": "https://www.linkedin.com"})
-    await _browser_call("wait", {"ms": 2000})
-    page_text = await _browser_call("extract", {"selector": "body"})
+    await ensure_browser()
+    await call_tool("navigate", {"url": "https://www.linkedin.com"})
+    await call_tool("wait", {"ms": 2000})
+    page_text = await call_tool("extract", {"selector": "body"})
 
     if "sign in" not in page_text.lower() and "feed" in page_text.lower():
         _linkedin_ready = True
@@ -175,14 +39,14 @@ async def _ensure_linkedin_session(email: str = None, password: str = None):
         )
 
     logger.info("Logging in to LinkedIn...")
-    await _browser_call("navigate", {"url": "https://www.linkedin.com/login"})
-    await _browser_call("wait", {"ms": 2000})
-    await _browser_call("fill", {"selector": "#username", "value": email})
-    await _browser_call("fill", {"selector": "#password", "value": password})
-    await _browser_call("click", {"selector": "button[type=submit]"})
-    await _browser_call("wait", {"ms": 5000})
+    await call_tool("navigate", {"url": "https://www.linkedin.com/login"})
+    await call_tool("wait", {"ms": 2000})
+    await call_tool("fill", {"selector": "#username", "value": email})
+    await call_tool("fill", {"selector": "#password", "value": password})
+    await call_tool("click", {"selector": "button[type=submit]"})
+    await call_tool("wait", {"ms": 5000})
 
-    check = await _browser_call("extract", {"selector": "body"})
+    check = await call_tool("extract", {"selector": "body"})
     if "checkpoint" in check.lower() or "security" in check.lower():
         raise RuntimeError("LinkedIn requires security verification - log in manually via Chrome")
 
@@ -212,25 +76,25 @@ async def linkedin_search_jobs(
     if remote_only:
         params += "&f_WT=2"
     url = f"https://www.linkedin.com/jobs/search/?{params}"
-    await _browser_call("navigate", {"url": url})
-    await _browser_call("wait", {"ms": 3000})
+    await call_tool("navigate", {"url": url})
+    await call_tool("wait", {"ms": 3000})
 
-    result = await _browser_call(
+    result = await call_tool(
         "run_script",
         {"script": f"""
-            const items = document.querySelectorAll('.job-card-container, .jobs-search-results__list li');
+            const items = document.querySelectorAll('.job-card-container, .jobs-search-results__list li, [data-job-id], article.jobs-search-results__list-item');
             const jobs = [];
             for(const item of items) {{
-                const title = item.querySelector('.job-card-list__title, .job-card-container__link');
-                const company = item.querySelector('.job-card-container__company-name');
-                const loc = item.querySelector('.job-card-container__metadata-item');
-                const link = title?.closest('a') || title?.querySelector('a');
-                if(title) {{
+                const titleEl = item.querySelector('.job-card-list__title, .job-card-container__link, .job-card-search__title, a[data-anonymize="job-title"]');
+                const companyEl = item.querySelector('.job-card-container__company-name, .job-card-search__company-name, [data-anonymize="company-name"]');
+                const locEl = item.querySelector('.job-card-container__metadata-item, .job-card-search__location, [data-anonymize="location"]');
+                const link = titleEl?.closest('a') || titleEl?.querySelector('a') || item.querySelector('a[href*="/jobs/view/"]');
+                if(titleEl) {{
                     const href = link ? (link.href || link.getAttribute('href')) : '';
                     jobs.push({{
-                        title: (title.textContent || '').trim(),
-                        company: (company?.textContent || '').trim(),
-                        location: (loc?.textContent || '').trim(),
+                        title: (titleEl.textContent || '').trim(),
+                        company: (companyEl?.textContent || '').trim(),
+                        location: (locEl?.textContent || '').trim(),
                         url: href
                     }});
                 }}
@@ -261,17 +125,17 @@ async def linkedin_search_jobs(
 async def linkedin_get_job_details(url: str) -> str:
     """Get full job description, company, location, and criteria from a LinkedIn job posting."""
     await _ensure_linkedin_session()
-    await _browser_call("navigate", {"url": url})
-    await _browser_call("wait", {"ms": 3000})
+    await call_tool("navigate", {"url": url})
+    await call_tool("wait", {"ms": 3000})
 
-    result = await _browser_call(
+    result = await call_tool(
         "run_script",
         {"script": """
-            const title = document.querySelector('.job-details-jobs-unified-top-card__job-title, h1');
-            const company = document.querySelector('.job-details-jobs-unified-top-card__company-name a, .job-details-top-card__company-name');
-            const location = document.querySelector('.job-details-jobs-unified-top-card__bullet, .job-details-top-card__location');
-            const desc = document.querySelector('.jobs-description__content, .show-more-less-html__markup, .job-details-jobs-unified-top-card__description');
-            const criteria = document.querySelectorAll('.job-details-jobs-unified-top-card__job-inset span');
+            const title = document.querySelector('.job-details-jobs-unified-top-card__job-title, h1, .job-title, [data-anonymize="job-title"]');
+            const company = document.querySelector('.job-details-jobs-unified-top-card__company-name a, .job-details-top-card__company-name, [data-anonymize="company-name"]');
+            const location = document.querySelector('.job-details-jobs-unified-top-card__bullet, .job-details-top-card__location, [data-anonymize="location"]');
+            const desc = document.querySelector('.jobs-description__content, .show-more-less-html__markup, .job-details-jobs-unified-top-card__description, .jobs-box__html-content');
+            const criteria = document.querySelectorAll('.job-details-jobs-unified-top-card__job-inset span, .job-criteria__item');
             return JSON.stringify({
                 title: title?.textContent?.trim() || 'N/A',
                 company: company?.textContent?.trim() || 'N/A',
@@ -300,17 +164,17 @@ async def linkedin_get_job_details(url: str) -> str:
 async def linkedin_scroll() -> str:
     """Scroll down on LinkedIn jobs page to load more results."""
     await _ensure_linkedin_session()
-    return await _browser_call("scroll", {"direction": "down"})
+    return await call_tool("scroll", {"direction": "down"})
 
 
 @mcp.tool()
 async def linkedin_check_easy_apply(url: str) -> str:
     """Check if a LinkedIn job posting has an Easy Apply button."""
     await _ensure_linkedin_session()
-    await _browser_call("navigate", {"url": url})
-    await _browser_call("wait", {"ms": 3000})
+    await call_tool("navigate", {"url": url})
+    await call_tool("wait", {"ms": 3000})
 
-    result = await _browser_call(
+    result = await call_tool(
         "run_script",
         {"script": """
             const btn = Array.from(document.querySelectorAll('button')).find(b =>
@@ -331,10 +195,10 @@ async def linkedin_check_easy_apply(url: str) -> str:
 async def linkedin_easy_apply(url: str, resume_path: str = "") -> str:
     """Apply to a LinkedIn job using Easy Apply. Walks through multi-step form and submits."""
     await _ensure_linkedin_session()
-    await _browser_call("navigate", {"url": url})
-    await _browser_call("wait", {"ms": 3000})
+    await call_tool("navigate", {"url": url})
+    await call_tool("wait", {"ms": 3000})
 
-    has_btn = await _browser_call(
+    has_btn = await call_tool(
         "run_script",
         {"script": """
             const btn = Array.from(document.querySelectorAll('button')).find(b =>
@@ -349,13 +213,13 @@ async def linkedin_easy_apply(url: str, resume_path: str = "") -> str:
     if "NO_EASY_APPLY" in has_btn:
         return "No Easy Apply button found for this job"
 
-    await _browser_call("click_by_text", {"text": "Easy Apply|Solicitar|Postular|Apply"})
-    await _browser_call("wait", {"ms": 2000})
+    await call_tool("click_by_text", {"text": "Easy Apply|Solicitar|Postular|Apply"})
+    await call_tool("wait", {"ms": 2000})
 
     steps = 0
     results = []
     while steps < 10:
-        info_raw = await _browser_call(
+        info_raw = await call_tool(
             "run_script",
             {"script": """
                 const buttons = Array.from(document.querySelectorAll('button'));
@@ -372,22 +236,22 @@ async def linkedin_easy_apply(url: str, resume_path: str = "") -> str:
             info = {"hasButton": False, "disabled": True}
 
         if not info.get("hasButton"):
-            modal = await _browser_call(
+            modal = await call_tool(
                 "run_script",
                 {"script": "return document.querySelector('.artdeco-modal, .jobs-easy-apply-modal') ? 'open' : 'closed';"},
             )
             if "closed" in modal:
                 results.append("Application submitted successfully!")
                 break
-            fields = await _browser_call("forms", {})
+            fields = await call_tool("forms", {})
             results.append(f"Step {steps+1} fields:\n{fields}")
-            await _browser_call("click_by_text", {"text": "Next|Siguiente|Review|Done"})
-            await _browser_call("wait", {"ms": 1500})
+            await call_tool("click_by_text", {"text": "Next|Siguiente|Review|Done"})
+            await call_tool("wait", {"ms": 1500})
             steps += 1
             continue
 
         if info.get("disabled"):
-            fields_raw = await _browser_call(
+            fields_raw = await call_tool(
                 "run_script",
                 {"script": """
                     const inputs = document.querySelectorAll('.jobs-easy-apply-modal input, .jobs-easy-apply-modal select, .jobs-easy-apply-modal textarea');
@@ -400,14 +264,22 @@ async def linkedin_easy_apply(url: str, resume_path: str = "") -> str:
             )
             results.append(f"Step {steps+1} requires fields:\n{fields_raw}")
 
-        await _browser_call(
+        await call_tool(
             "click",
             {
                 "selector": "button[aria-label*='Next'], button[aria-label*='Siguiente'], button[aria-label*='Review'], button[aria-label*='Submit'], .artdeco-button--primary"
             },
         )
-        await _browser_call("wait", {"ms": 2000})
+        await call_tool("wait", {"ms": 2000})
         steps += 1
+
+        modal = await call_tool(
+            "run_script",
+            {"script": "return document.querySelector('.artdeco-modal, .jobs-easy-apply-modal') ? 'open' : 'closed';"},
+        )
+        if "closed" in modal:
+            results.append("Application submitted successfully!")
+            break
 
     result_text = "\n".join(results) if results else "Application flow completed"
     return f"Easy Apply completed in {steps} steps.\n{result_text}"
@@ -424,7 +296,7 @@ def main():
 
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
-    atexit.register(lambda: loop.run_until_complete(_browser_stop()))
+    atexit.register(lambda: loop.run_until_complete(stop_browser()))
     load_dotenv()
     transport = os.environ.get("MCP_TRANSPORT", "stdio")
     if transport == "sse":

@@ -124,7 +124,7 @@ class TestGenerateAnswer:
 class TestGenerateRadioAnswer:
     def test_disponibilidad_returns_si(self, sample_profile):
         q = FormQuestion(QuestionType.RADIO, "¿Tienes disponibilidad inmediata?", "disp")
-        assert generate_radio_answer(q, sample_profile) == "Si"
+        assert generate_radio_answer(q, sample_profile) == "Sí"
 
     def test_negative_pattern_returns_no(self, sample_profile):
         q = FormQuestion(QuestionType.RADIO, "¿Tienes alguna discapacidad?", "disc")
@@ -132,7 +132,7 @@ class TestGenerateRadioAnswer:
 
     def test_default_returns_si(self, sample_profile):
         q = FormQuestion(QuestionType.RADIO, "¿Alguna pregunta?", "gen")
-        assert generate_radio_answer(q, sample_profile) == "Si"
+        assert generate_radio_answer(q, sample_profile) == "Sí"
 
 
 class TestGenerateSelectAnswer:

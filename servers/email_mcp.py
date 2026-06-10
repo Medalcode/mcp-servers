@@ -1,3 +1,4 @@
+import os
 from mcp.server.fastmcp import FastMCP
 from dotenv import load_dotenv
 from email_mcp.gmail import (
@@ -38,7 +39,8 @@ async def email_threads(query: str = "", max_results: int = 10) -> str:
 
 
 def main():
-    load_dotenv()
+    env_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env")
+    load_dotenv(env_path)
     mcp.run(transport="stdio")
 
 

@@ -20,8 +20,11 @@ def register_tools(mcp: FastMCP):
             return "No jobs found. Try different keywords or location."
 
         import json
+        display = min(len(jobs), 25)
         result = {
             "count": len(jobs),
+            "displayed": display,
+            "warning": f"Mostrando {display} de {len(jobs)} resultados. Refina tu búsqueda para ver más." if len(jobs) > 25 else None,
             "query": query,
             "location": location,
             "remoteOnly": remote_only,
@@ -32,7 +35,7 @@ def register_tools(mcp: FastMCP):
 
     @mcp.tool()
     async def job_search_from_profile(profile_id: int = None, remote_only: bool = False,
-                                       use_ai: bool = True) -> str:
+                                       use_ai: bool = True, location: str = "Chile") -> str:
         """Search jobs using your profile's title and skills. AI matching is enabled by default for smarter results."""
         if profile_id:
             data = profile_repo.get_full_profile(profile_id)
@@ -47,16 +50,19 @@ def register_tools(mcp: FastMCP):
         query = f"{title} {' '.join(skills[:5])}"
 
         if use_ai:
-            jobs = await search_jobs_with_ai(query, data, remote_only=remote_only)
+            jobs = await search_jobs_with_ai(query, data, location=location, remote_only=remote_only)
         else:
-            jobs = await search_jobs(query, remote_only=remote_only)
+            jobs = await search_jobs(query, location=location, remote_only=remote_only)
 
         if not jobs:
             return "No jobs found matching your profile."
 
         import json
+        display = min(len(jobs), 25)
         result = {
             "count": len(jobs),
+            "displayed": display,
+            "warning": f"Mostrando {display} de {len(jobs)} resultados. Refina tu búsqueda para ver más." if len(jobs) > 25 else None,
             "query": query,
             "profileUsed": data.get("personalInfo", {}).get("firstName", ""),
             "aiMatched": use_ai,

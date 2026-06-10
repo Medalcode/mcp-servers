@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 from mcp.server import FastMCP
 from services.company_research import research_company as rc, get_company_insights
-from services.ai_provider import _call_routemcp
+from services.ai_provider import _call_ai
 from database.repos import applications as app_repo
 from database.repos import profiles as profile_repo
 from database import get_connection
@@ -55,7 +55,7 @@ Genera en español:
 
 Responde en formato markdown."""
         try:
-            result = await _call_routemcp("interview_prep", prompt)
+            result = await _call_ai(prompt)
         except Exception as e:
             result = f"Error generando preparación: {e}"
 

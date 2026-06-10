@@ -83,7 +83,7 @@ def init_db():
             profile_id INTEGER,
             job_title TEXT NOT NULL,
             company TEXT NOT NULL,
-            status TEXT DEFAULT 'to_apply',
+            status TEXT DEFAULT 'to_apply' CHECK(status IN ('to_apply','applied','interview','offer','rejected')),
             url TEXT,
             salary_range TEXT,
             location TEXT,

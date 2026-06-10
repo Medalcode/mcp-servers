@@ -2,7 +2,9 @@
 
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue.svg)]()
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-134%20passing-brightgreen.svg)]()
+[![Tests](https://img.shields.io/badge/tests-134%20passing-success.svg)]()
+
+> **Última actualización**: 9 Junio 2026 — Refactor completo de AI Provider, nuevos scrapers, robustez general.
 [![Lint](https://img.shields.io/badge/lint-ruff-passing-brightgreen.svg)]()
 
 Monorepo unificado con 11 servidores MCP (Model Context Protocol) + herramientas de carrera Pathwise.
@@ -106,7 +108,7 @@ python filesystem_server.py
 - **Protección de Protocolo MCP**: Salida de logs dirigida a `stderr` para evitar corrupciones en el canal JSON-RPC (`stdout`).
 - **Concurrencia DB (Thread-Safe)**: Manejo de conexiones SQLite aisladas por hilo (thread-local) con modo WAL habilitado.
 
-## Tests — 113 tests, todos pasando
+## Tests — 134 tests, todos pasando
 
 El proyecto cuenta con una suite de pruebas utilizando `pytest` y `pytest-asyncio`. Las pruebas incluyen fixtures automatizados con bases de datos en memoria para no afectar el entorno local.
 
@@ -116,7 +118,7 @@ pytest tests/ -v
 
 | Suite | Tests | Cobertura |
 |---|---|---|
-| Database | 6 | Inicialización, admin, FTS, idempotencia |
+| Database | 6 | Inicialización, admin, FTS, CHECK constraint |
 | Applications | 7 | CRUD, stats, status patch |
 | Profiles | 5 | CRUD, delete protection |
 | Form Filler | 19 | Inferencia de tipos, parseo, generación de respuestas |
@@ -158,8 +160,8 @@ mcp-servers/
 ├── email_mcp/          # Gmail API client
 ├── task_tracker/       # Persistent task manager with deps
 ├── tools/              # MCP tool definitions (profile, job, application, cover letter, CV, auto-apply, interview)
-├── services/           # Business logic (AI, CV, form filler, job search, company research)
-│   └── scrapers/       # Job board scrapers (ChileTrabajos, Computrabajo, etc.)
+├── services/           # Business logic (AI, CV, form filler, job search, company research, browser client)
+│   └── scrapers/       # Job board scrapers (BeBee, Randstad, GetOnBoard, Indeed, etc.)
 ├── tests/              # 134 tests
 ├── github_server.py    # GitHub API server
 ├── filesystem_server.py
@@ -167,6 +169,18 @@ mcp-servers/
 ```
 
 ## Recent Improvements
+
+### 2026-06-09 — Refactor AI Provider + nuevos scrapers + robustez
+- **AI Provider reescrito**: `RouterEngine` + fallback Groq → Gemini → Cerebras. Sin dependencia de RouteMCP HTTP.
+- **Browser Client unificado**: `services/browser_client.py` elimina 200+ líneas de código duplicado entre LinkedIn y Auto-Apply.
+- **Nuevos scrapers**: BeBee (vía API pública), Randstad (extracción JSON SSR).
+- **GetOnBoard reparado**: URLs de API corregidas + selectores HTML actualizados.
+- **Form Filler mejorado**: `generate_radio_answer` corrige "Si" → "Sí"; `generate_select_answer` salta placeholders, prioriza contexto (escolaridad, género, año).
+- **`.env` con ruta absoluta**: los 11 servidores cargan `.env` desde el directorio del proyecto, no del CWD.
+- **CHECK constraint** en `status` de applications: validación a nivel DB.
+- **Easy Apply loop**: verificación de modal cerrado tras cada click para evitar ciclos infinitos.
+- **Job tools**: warning cuando se truncan resultados >25.
+- **134/134 tests pasando** (el test de IntegrityError ahora funciona gracias al CHECK constraint).
 
 ### 2026-06 — 5 nuevos servidores MCP + limpieza masiva
 - **MemoryMCP**: memoria persistente con SQLite (key-value, búsqueda, contextos por sesión)

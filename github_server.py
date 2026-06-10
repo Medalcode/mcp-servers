@@ -3,12 +3,17 @@ import sys
 import os
 from functools import wraps
 
+from dotenv import load_dotenv
+
 import github
 from github import Github, Auth
 from mcp.server.fastmcp import FastMCP
 
 logging.basicConfig(stream=sys.stderr, level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
+
+env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
+load_dotenv(env_path)
 
 mcp = FastMCP("GitHub MCP")
 

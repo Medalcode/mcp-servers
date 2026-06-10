@@ -33,7 +33,6 @@ dependencies = [
     "pymupdf>=1.23.0",
     "reportlab>=4.0.0",
     "pypdf>=4.0.0",
-    "pypdf2>=3.0.0",
     "python-dotenv>=1.0.0",
     "bcrypt>=4.0.0",
 ]
@@ -45,6 +44,7 @@ email = ["google-api-python-client>=2.0.0", "google-auth-oauthlib>=1.0.0"]
 test = [
     "pytest>=8.0.0",
     "pytest-asyncio>=0.24.0",
+    "pytest-mock>=3.14.0",
 ]
 all = [
     "medalcode-mcp-servers[duckdb,github,email]",

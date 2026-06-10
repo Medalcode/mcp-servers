@@ -258,8 +258,14 @@ class SeleniumEngine(BrowserEngine):
                     if not label and title_attr:
                         label = title_attr
                     required = inp.get_attribute("required") is not None
+                    options = []
+                    if tag == "select":
+                        try:
+                            options = [opt.text.strip() for opt in inp.find_elements(By.TAG_NAME, "option") if opt.text.strip()]
+                        except Exception:
+                            pass
                     fields.append(FormField(tag=tag, name=name, type=type_,
-                                            label=label, required=required))
+                                            label=label, required=required, options=options))
                 forms.append(FormInfo(action=action, method=method, fields=fields))
             return forms
         except Exception:

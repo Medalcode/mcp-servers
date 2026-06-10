@@ -1,3 +1,4 @@
+import os
 from mcp.server.fastmcp import FastMCP
 from dotenv import load_dotenv
 from task_tracker.engine import (
@@ -63,7 +64,8 @@ async def task_brainstorm(title: str, ideas: str) -> str:
 
 
 def main():
-    load_dotenv()
+    env_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env")
+    load_dotenv(env_path)
     mcp.run(transport="stdio")
 
 

@@ -103,11 +103,18 @@ def parse_forms_json(forms_json: str) -> list[FormQuestion]:
             if qtype == QuestionType.HIDDEN:
                 continue
             found = _normalize_label(label or placeholder or name)
+            opts = field.get("options", [])
+            if isinstance(opts, str):
+                try:
+                    opts = json.loads(opts)
+                except json.JSONDecodeError:
+                    opts = []
             questions.append(FormQuestion(
                 qtype=qtype,
                 label=found,
                 name=name,
                 required=required,
+                options=opts,
                 placeholder=placeholder,
                 tag=tag,
             ))
@@ -252,9 +259,9 @@ def generate_radio_answer(question: FormQuestion, profile: dict) -> str:
     
     for pattern in positive_patterns:
         if re.search(pattern, label_lower):
-            return "Si"
-    
-    return "Si"
+            return "Sí"
+
+    return "Sí"
 
 
 def generate_select_answer(question: FormQuestion, profile: dict) -> str:
@@ -263,21 +270,63 @@ def generate_select_answer(question: FormQuestion, profile: dict) -> str:
         return ""
     label_lower = question.label.lower()
     
+    skip_items = {"seleccionar", "seleccione", "elige", "choose", "select", "",
+                  "ninguno", "ninguna", "nada", "none", "no aplica", "n/a"}
+    valid_opts = [o for o in options if re.sub(r'[\s\.\,\;\:\-\_]+', '', o.strip().lower()) not in skip_items
+                  and o.strip().lower() not in skip_items]
+    if not valid_opts:
+        valid_opts = options
+    first_valid = valid_opts[0]
+    
     if any(t in label_lower for t in ["comuna", "ciudad", "región", "region"]):
         city = profile.get("personalInfo", {}).get("city", "Santiago")
-        for opt in options:
+        for opt in valid_opts:
             if city.lower() in opt.lower() or opt.lower() in city.lower():
                 return opt
-        if options:
-            return options[0]
+        return first_valid
     
     if any(t in label_lower for t in ["país", "pais"]):
-        for opt in options:
+        for opt in valid_opts:
             if "chile" in opt.lower():
                 return opt
-        if options:
-            return options[0]
+        return first_valid
     
-    if options:
-        return options[0]
-    return ""
+    if any(t in label_lower for t in ["escolaridad", "educación", "educacion",
+                                       "estudios", "nivel académico", "nivel academico"]):
+        for opt in valid_opts:
+            if any(g in opt.lower() for g in ["universitario", "técnico", "superior",
+                                               "educación superior", "pregrado"]):
+                return opt
+        return first_valid
+    
+    if any(t in label_lower for t in ["año", "year", "semestre", "nivel"]):
+        edu = profile.get("education", [])
+        for e in edu:
+            year = e.get("year", "") or e.get("endYear", "")
+            if year:
+                for opt in valid_opts:
+                    if str(year) in opt:
+                        return opt
+        if valid_opts:
+            numeric_opts = [o for o in valid_opts if re.search(r'\d{4}', o)]
+            if numeric_opts:
+                return numeric_opts[0]
+        return first_valid
+    
+    if any(t in label_lower for t in ["carrera", "título", "titulo", "grado"]):
+        edu = profile.get("education", [])
+        for e in edu:
+            degree = e.get("degree", "")
+            if degree:
+                for opt in valid_opts:
+                    if degree.lower() in opt.lower() or opt.lower() in degree.lower():
+                        return opt
+        return first_valid
+    
+    if any(t in label_lower for t in ["género", "genero", "sexo"]):
+        for opt in valid_opts:
+            if any(g in opt.lower() for g in ["masculino", "hombre", "varón"]):
+                return opt
+        return first_valid
+    
+    return first_valid

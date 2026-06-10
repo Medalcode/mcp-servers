@@ -2,6 +2,7 @@ import asyncio
 import json
 import logging
 
+from services.ai_provider import _clean_json
 from services.scraper_engine import search_all
 from services.scrapers import (
     scan_chiletrabajos, scan_computrabajo,
@@ -59,7 +60,7 @@ async def search_jobs_with_ai(query: str, profile: dict, location: str = "Chile"
                                remote_only: bool = False, use_new_engine: bool = True) -> list:
     jobs = await search_jobs(query, location, remote_only, use_new_engine)
 
-    from services.ai_provider import _call_routemcp
+    from services.ai_provider import _call_ai
 
     pi = profile.get("personalInfo", {})
     skills = ", ".join(profile.get("skills", [])[:10])
@@ -83,11 +84,8 @@ Responde ÚNICAMENTE con un array JSON donde cada elemento tiene: {{"index": int
 
 Devuelve SOLO el JSON array, sin texto adicional."""
     try:
-        result = await _call_routemcp("job_matching", prompt)
-        cleaned = result.strip()
-        if cleaned.startswith("```"):
-            cleaned = cleaned.split("\n", 1)[1] if "\n" in cleaned else cleaned[3:]
-            cleaned = cleaned.rsplit("```", 1)[0] if "```" in cleaned else cleaned
+        result = await _call_ai("job_matching -- " + pi.get('currentTitle', '')[:50])
+        cleaned = _clean_json(result)
         scores = json.loads(cleaned)
         score_map = {s["index"] - 1: s for s in scores if isinstance(s, dict)}
         for i, job in enumerate(jobs):

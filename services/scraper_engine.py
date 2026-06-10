@@ -12,6 +12,7 @@ from services.scrapers import (
     scan_getonboard, scan_remoteok,
     scan_laborum, scan_firstjob,
     scan_indeed, scan_trabajando,
+    scan_randstad, scan_bebee,
 )
 
 logger = logging.getLogger(__name__)
@@ -37,6 +38,8 @@ DEDICATED_SCRAPERS = [
     ("FirstJob", scan_firstjob),
     ("Indeed", scan_indeed),
     ("Trabajando", scan_trabajando),
+    ("Randstad", scan_randstad),
+    ("BeBee", scan_bebee),
 ]
 
 SCRAPEMCP_URL = os.environ.get("SCRAPEMCP_URL", "")

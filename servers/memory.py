@@ -1,3 +1,4 @@
+import os
 from mcp.server.fastmcp import FastMCP
 from dotenv import load_dotenv
 from memory_engine.store import (
@@ -58,7 +59,8 @@ async def get_session_context(session_id: str, limit: int = 10) -> str:
 
 
 def main():
-    load_dotenv()
+    env_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env")
+    load_dotenv(env_path)
     mcp.run(transport="stdio")
 
 

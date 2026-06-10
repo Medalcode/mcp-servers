@@ -50,11 +50,9 @@ async def research_company(company_name: str) -> dict:
             except Exception as e:
                 logger.warning("Google search failed for query '%s': %s", query, e)
 
-    from database.config import ROUTEMCP_ENABLED
-    if ROUTEMCP_ENABLED:
-        try:
-            from services.ai_provider import _call_routemcp
-            prompt = f"""Proporciona información sobre la empresa "{company_name}" en Chile. Responde SOLO con JSON:
+    try:
+        from services.ai_provider import _call_ai, _clean_json
+        prompt = f"""Proporciona información sobre la empresa "{company_name}" en Chile. Responde SOLO con JSON:
 {{
   "website": str o "",
   "industry": str o "",
@@ -64,21 +62,18 @@ async def research_company(company_name: str) -> dict:
   "techStack": str o "",
   "careersUrl": str o ""
 }}"""
-            result = await _call_routemcp("company_research", prompt)
-            cleaned = result.strip()
-            if cleaned.startswith("```"):
-                cleaned = cleaned.split("\n", 1)[1] if "\n" in cleaned else cleaned[3:]
-                cleaned = cleaned.rsplit("```", 1)[0] if "```" in cleaned else cleaned
-            ai_data = json.loads(cleaned)
-            info["website"] = ai_data.get("website", info["website"])
-            info["industry"] = ai_data.get("industry", info["industry"])
-            info["size"] = ai_data.get("size", info["size"])
-            info["description"] = ai_data.get("description", info["description"])
-            info["culture"] = ai_data.get("culture", info["culture"])
-            info["tech_stack"] = ai_data.get("techStack", info["tech_stack"])
-            info["careers_url"] = ai_data.get("careersUrl", info["careers_url"])
-        except Exception as e:
-            logger.warning("AI company research failed: %s", e)
+        result = await _call_ai("company_research -- " + company_name[:50])
+        cleaned = _clean_json(result)
+        ai_data = json.loads(cleaned)
+        info["website"] = ai_data.get("website", info["website"])
+        info["industry"] = ai_data.get("industry", info["industry"])
+        info["size"] = ai_data.get("size", info["size"])
+        info["description"] = ai_data.get("description", info["description"])
+        info["culture"] = ai_data.get("culture", info["culture"])
+        info["tech_stack"] = ai_data.get("techStack", info["tech_stack"])
+        info["careers_url"] = ai_data.get("careersUrl", info["careers_url"])
+    except Exception as e:
+        logger.warning("AI company research failed: %s", e)
 
     conn.execute("""INSERT INTO companies (name, website, industry, size, description, culture, tech_stack, linkedin_url, careers_url)
         VALUES (?,?,?,?,?,?,?,?,?)""",

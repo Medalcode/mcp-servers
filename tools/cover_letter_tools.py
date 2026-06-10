@@ -19,7 +19,7 @@ def register_tools(mcp: FastMCP):
     @mcp.tool()
     async def cover_letter_suggest_improvements(cover_letter: str, job_description: str) -> str:
         """Analyze a cover letter and job description, then suggest improvements to make the letter more effective."""
-        from services.ai_provider import _call_routemcp
+        from services.ai_provider import _call_ai
         prompt = f"""Analiza esta carta de presentación y la descripción del trabajo. Sugiere mejoras específicas para que la carta sea más efectiva.
 
 CARTA:
@@ -30,7 +30,7 @@ DESCRIPCIÓN DEL TRABAJO:
 
 Sugiere 3-5 mejoras concretas. Responde en español."""
         try:
-            result = await _call_routemcp("cover_letter_improve", prompt)
+            result = await _call_ai(prompt)
             return result
         except Exception as e:
             return f"Error: {e}"

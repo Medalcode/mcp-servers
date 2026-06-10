@@ -4,128 +4,18 @@ from services.form_filler import (
     parse_forms_json, generate_answer, generate_radio_answer,
     generate_select_answer, QuestionType, FormQuestion
 )
-from services.ai_provider import _call_routemcp, _clean_json
+from services.ai_provider import _call_ai, _clean_json
 from database.repos import profiles as profile_repo
 import asyncio
 import json
 import logging
 import os
 import re
-import signal
-import sys
-import time
 from urllib.parse import urlparse
 
+from services.browser_client import call_tool as _call_browser_tool
+
 logger = logging.getLogger(__name__)
-
-_MCP_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-
-_browser_proc = None
-_browser_proc_lock = asyncio.Lock()
-_next_req_id = 100
-_req_id_lock = asyncio.Lock()
-
-
-async def _next_id() -> int:
-    global _next_req_id
-    async with _req_id_lock:
-        cur = _next_req_id
-        _next_req_id += 1
-        return cur
-
-
-async def _consume_stderr(proc):
-    try:
-        while True:
-            line = await proc.stderr.readline()
-            if not line:
-                break
-            logger.debug("BrowserMCP stderr: %s", line.decode().rstrip())
-    except Exception:
-        pass
-
-
-async def _read_json_response(proc, timeout=60):
-    buf = ""
-    deadline = time.monotonic() + timeout
-    while time.monotonic() < deadline:
-        remaining = deadline - time.monotonic()
-        if remaining <= 0:
-            break
-        try:
-            line = await asyncio.wait_for(proc.stdout.readline(), timeout=min(5.0, remaining))
-        except asyncio.TimeoutError:
-            continue
-        if not line:
-            break
-        buf += line.decode()
-        try:
-            return json.loads(buf)
-        except json.JSONDecodeError:
-            continue
-    raise TimeoutError("No valid JSON response from browser")
-
-
-async def _ensure_browser_proc():
-    global _browser_proc
-    async with _browser_proc_lock:
-        if _browser_proc is None or _browser_proc.returncode is not None:
-            env = {**os.environ, "BROWSER_ENGINE": "selenium", "CHROME_DEBUG_PORT": "9226"}
-            _browser_proc = await asyncio.create_subprocess_exec(
-                sys.executable, "-m", "servers.browser",
-                stdin=asyncio.subprocess.PIPE,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-                cwd=_MCP_DIR,
-                env=env,
-            )
-            asyncio.ensure_future(_consume_stderr(_browser_proc))
-            init_req = json.dumps({"jsonrpc": "2.0", "id": 1, "method": "initialize",
-                                   "params": {"protocolVersion": "2024-11-05", "capabilities": {},
-                                              "clientInfo": {"name": "pathwise", "version": "1.0"}}}) + "\n"
-            _browser_proc.stdin.write(init_req.encode())
-            await _browser_proc.stdin.drain()
-            resp = await _read_json_response(_browser_proc, timeout=10)
-            logger.debug("BrowserMCP init response: %s", str(resp)[:100] if resp else "None")
-            init_notif = json.dumps({"jsonrpc": "2.0", "method": "notifications/initialized", "params": {}}) + "\n"
-            _browser_proc.stdin.write(init_notif.encode())
-            await _browser_proc.stdin.drain()
-    return _browser_proc
-
-
-async def _call_browser_tool(tool: str, args: dict, max_retries: int = 2) -> str:
-    last_error = ""
-    for attempt in range(max_retries + 1):
-        try:
-            proc = await _ensure_browser_proc()
-            req_id = await _next_id()
-            payload = json.dumps({"jsonrpc": "2.0", "id": req_id, "method": "tools/call",
-                                  "params": {"name": tool, "arguments": args}}) + "\n"
-            proc.stdin.write(payload.encode())
-            await proc.stdin.drain()
-            data = await _read_json_response(proc, timeout=60)
-            if "result" in data:
-                items = data["result"].get("content", [])
-                for item in items:
-                    if item.get("type") == "text":
-                        return item["text"]
-            if "error" in data:
-                logger.warning("BrowserMCP error: %s", data["error"])
-                return f"BrowserMCP error: {data['error'].get('message', 'unknown')}"
-            return "BrowserMCP call failed (no result)"
-        except (asyncio.TimeoutError, TimeoutError) as e:
-            last_error = str(e)
-            logger.error("BrowserMCP timeout for %s (attempt %d/%d)", tool, attempt + 1, max_retries + 1)
-            await _reset_browser_proc()
-            if attempt < max_retries:
-                await asyncio.sleep(1 * (attempt + 1))
-        except Exception as e:
-            last_error = str(e)
-            logger.error("BrowserMCP call failed: %s (attempt %d/%d)", e, attempt + 1, max_retries + 1)
-            await _reset_browser_proc()
-            if attempt < max_retries:
-                await asyncio.sleep(1 * (attempt + 1))
-    return f"BrowserMCP failed after {max_retries + 1} attempts: {last_error}"
 
 
 async def _auto_click_apply():
@@ -134,24 +24,6 @@ async def _auto_click_apply():
     result = await _call_browser_tool("click_by_text", {"text": patterns})
     await asyncio.sleep(2)
     return result
-
-
-async def _reset_browser_proc():
-    global _browser_proc
-    async with _browser_proc_lock:
-        if _browser_proc:
-            try:
-                _browser_proc.send_signal(signal.SIGTERM)
-                try:
-                    await asyncio.wait_for(_browser_proc.wait(), timeout=5)
-                except asyncio.TimeoutError:
-                    _browser_proc.kill()
-                    await _browser_proc.wait()
-            except ProcessLookupError:
-                pass
-            except Exception as e:
-                logger.warning("reset_browser_proc: %s", e)
-            _browser_proc = None
 
 
 async def _should_apply(page_text: str, profile: dict) -> tuple[bool, str]:
@@ -198,14 +70,14 @@ Responde SOLO con JSON:
 {{"apply": true/false, "reason": "explicación corta en español"}}"""
 
     try:
-        result = await _call_routemcp("skill_check", prompt)
+        result = await _call_ai(prompt[:3000])
         cleaned = _clean_json(result)
         import json
         parsed = json.loads(cleaned)
         return parsed.get("apply", True), parsed.get("reason", "Sin evaluación")
     except Exception as e:
         logger.warning("Skill check AI evaluation failed: %s", e)
-        return False, "No se pudo evaluar la compatibilidad, se omite postulación"
+        return True, "No se pudo evaluar la compatibilidad, se procede con postulación"
 
 
 async def _get_context_help(question: FormQuestion, profile: dict) -> str:

@@ -1,37 +1,40 @@
-import httpx
 import json
 import logging
 import os
-from database.config import ROUTEMCP_ENABLED
+from router.engine import RouterEngine
+from router.providers.base import ProviderError
 
 logger = logging.getLogger(__name__)
 
-ROUTEMCP_URL = os.getenv("ROUTEMCP_URL", "http://localhost:8000")
-
 AI_TEMPERATURE = float(os.getenv("AI_TEMPERATURE", "0.3"))
+AI_MODEL = os.getenv("AI_MODEL", "llama-3.3-70b")
 
-async def _call_routemcp(action: str, prompt: str, model: str = "llama-3.3-70b-versatile") -> str:
-    if not ROUTEMCP_ENABLED:
-        raise RuntimeError("RouteMCP is not enabled. Set ROUTEMCP_ENABLED=true")
+_engine = None
+
+def _get_engine() -> RouterEngine:
+    global _engine
+    if _engine is None:
+        _engine = RouterEngine()
+    return _engine
+
+async def _call_ai(prompt: str, model: str = None) -> str:
+    engine = _get_engine()
+    model_id = model or AI_MODEL
     try:
-        async with httpx.AsyncClient(timeout=120) as client:
-            resp = await client.post(f"{ROUTEMCP_URL}/api/chat", json={
-                "model": model,
-                "messages": [{"role": "user", "content": prompt}],
-                "temperature": AI_TEMPERATURE,
-            })
-            resp.raise_for_status()
-            data = resp.json()
-            return data.get("content", "")
-    except httpx.TimeoutException as e:
-        logger.error("RouteMCP timeout for action=%s: %s", action, e)
-        raise
-    except httpx.HTTPStatusError as e:
-        logger.error("RouteMCP HTTP error for action=%s: %s", action, e)
-        raise
-    except (json.JSONDecodeError, KeyError) as e:
-        logger.error("RouteMCP response parse error for action=%s: %s", action, e)
-        raise
+        result = await engine.ask(model_id, prompt, temperature=AI_TEMPERATURE)
+        return result
+    except ProviderError as e:
+        logger.warning("Primary model %s failed: %s. Trying fallback...", model_id, e)
+        fallbacks = ["gemini-2.0-flash", "llama-3.3-70b", "llama-3.1-8b"]
+        for fb in fallbacks:
+            if fb == model_id:
+                continue
+            try:
+                result = await engine.ask(fb, prompt, temperature=AI_TEMPERATURE)
+                return result
+            except ProviderError:
+                continue
+        raise RuntimeError(f"All AI providers failed for prompt: {e}")
 
 def _clean_json(text: str) -> str:
     if not text:
@@ -65,7 +68,7 @@ Responde ÚNICAMENTE con un JSON con esta estructura:
 }}
 Usa null para campos sin datos, array vacío para listas sin datos."""
     try:
-        result = await _call_routemcp("cv_parse", prompt)
+        result = await _call_ai("cv_parse -- " + raw_text[:1000])
         cleaned = _clean_json(result)
         return json.loads(cleaned)
     except Exception as e:
@@ -109,7 +112,7 @@ Requisitos:
 - NO incluir dirección, fecha, ni firma
 - Genera SOLO el cuerpo de la carta"""
     try:
-        result = await _call_routemcp("cover_letter", prompt, model="llama-3.3-70b-versatile")
+        result = await _call_ai("cover_letter -- " + job_title[:50])
         return _clean_json(result)
     except Exception as e:
         return f"Error generando carta: {e}"
@@ -146,7 +149,7 @@ Responde ÚNICAMENTE con JSON:
   {{"title": str, "description": str, "keySkills": [str], "searchKeywords": [str], "targetRoles": [str]}}
 ]}}"""
     try:
-        result = await _call_routemcp("personas", prompt)
+        result = await _call_ai("personas -- " + (pi.get('currentTitle', '') or 'profile'))
         cleaned = _clean_json(result)
         data = json.loads(cleaned)
         return data.get("profiles", [])

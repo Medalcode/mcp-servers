@@ -27,6 +27,7 @@ class FormField:
     type: str
     label: str
     required: bool = False
+    options: list[str] = field(default_factory=list)
 
 
 @dataclass

@@ -18,6 +18,9 @@ mcp = FastMCP("DocMCP")
 reader = PDFReader()
 manip = PDFManipulator()
 gen = PDFGenerator()
+_env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".env")
+load_dotenv(_env_path)
+
 workdir = os.environ.get("DOCMCP_WORKDIR", os.path.expanduser("~"))
 MAX_DOC_SIZE_MB = int(os.environ.get("DOCMCP_MAX_SIZE_MB", "200"))
 
@@ -201,7 +204,8 @@ def generate_text(text: str, output: str, title: str = "") -> str:
 
 
 def main():
-    load_dotenv()
+    env_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env")
+    load_dotenv(env_path)
     transport = os.environ.get("MCP_TRANSPORT", "stdio")
     if transport == "sse":
         mcp.run(transport="sse", host=os.environ.get("MCP_HOST", "0.0.0.0"), port=int(os.environ.get("MCP_PORT", "8080")))

@@ -4,52 +4,47 @@ from typing import Any
 
 import httpx
 
-GH_TOKEN = os.getenv("GITHUB_TOKEN", "")
 GH_API = "https://api.github.com"
 
-HEADERS = {
-    "Authorization": f"Bearer {GH_TOKEN}",
-    "Accept": "application/vnd.github.v3+json",
-    "User-Agent": "medalcode-mcp-github",
-}
 
-if not GH_TOKEN:
-    GH_TOKEN_FALLBACK = os.getenv("GH_TOKEN", "")
-    if GH_TOKEN_FALLBACK:
-        HEADERS["Authorization"] = f"Bearer {GH_TOKEN_FALLBACK}"
+def _get_headers() -> dict:
+    token = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN", "")
+    return {
+        "Authorization": f"Bearer {token}" if token else "",
+        "Accept": "application/vnd.github.v3+json",
+        "User-Agent": "medalcode-mcp-github",
+    }
 
 
 def _check_token():
-    token = HEADERS.get("Authorization", "")
-    if not token or token == "Bearer ":
-        return False
-    return True
+    token = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN", "")
+    return bool(token)
 
 
 async def _get(path: str, params: dict | None = None) -> dict:
     async with httpx.AsyncClient() as c:
-        r = await c.get(f"{GH_API}{path}", headers=HEADERS, params=params, timeout=30)
+        r = await c.get(f"{GH_API}{path}", headers=_get_headers(), params=params, timeout=30)
         r.raise_for_status()
         return r.json()
 
 
 async def _post(path: str, data: dict) -> dict:
     async with httpx.AsyncClient() as c:
-        r = await c.post(f"{GH_API}{path}", headers=HEADERS, json=data, timeout=30)
+        r = await c.post(f"{GH_API}{path}", headers=_get_headers(), json=data, timeout=30)
         r.raise_for_status()
         return r.json()
 
 
 async def _patch(path: str, data: dict) -> dict:
     async with httpx.AsyncClient() as c:
-        r = await c.patch(f"{GH_API}{path}", headers=HEADERS, json=data, timeout=30)
+        r = await c.patch(f"{GH_API}{path}", headers=_get_headers(), json=data, timeout=30)
         r.raise_for_status()
         return r.json()
 
 
 async def _put(path: str, data: dict | None = None) -> dict:
     async with httpx.AsyncClient() as c:
-        r = await c.put(f"{GH_API}{path}", headers=HEADERS, json=data, timeout=30)
+        r = await c.put(f"{GH_API}{path}", headers=_get_headers(), json=data, timeout=30)
         r.raise_for_status()
         return r.json()
 
@@ -195,7 +190,7 @@ async def list_branches(repo: str) -> str:
         data = await _get(f"/repos/{repo}/branches", {"per_page": 50})
         lines = [f"# Branches — {repo}", ""]
         for branch in data:
-            default = " [default]" if branch.get("name") == "main" or branch.get("name") == "master" else ""
+            default = " [default]" if branch.get("name") in ("main", "master") else ""
             protected = " [protected]" if branch.get("protected") else ""
             lines.append(f"- {branch['name']}{default}{protected}")
         return "\n".join(lines)

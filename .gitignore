@@ -12,3 +12,5 @@ venv/
 data/
 dist/
 *.egg-info/
+profile.json
+config.json
