@@ -1,7 +1,7 @@
 from mcp.server import FastMCP
 from database.repos import profiles as profile_repo
 
-def register_tools(mcp: FastMCP):
+def register_tools(mcp: FastMCP) -> None:
     @mcp.tool()
     async def profile_load(profile_id: int = None) -> str:
         """Load your professional profile (skills, experience, education). Returns full profile data with all fields."""

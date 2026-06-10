@@ -84,7 +84,7 @@ class BrowserEngine(ABC):
         ...
 
     @abstractmethod
-    def close(self):
+    def close(self) -> None:
         ...
 
     @property

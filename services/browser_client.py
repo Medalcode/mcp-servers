@@ -24,7 +24,7 @@ async def _next_id() -> int:
         return cur
 
 
-async def _consume_stderr(proc):
+async def _consume_stderr(proc) -> None:
     try:
         while True:
             line = await proc.stderr.readline()
@@ -37,7 +37,7 @@ async def _consume_stderr(proc):
         pass
 
 
-async def _read_json_response(proc, timeout=60):
+async def _read_json_response(proc, timeout=60) -> None:
     buf = ""
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
@@ -64,7 +64,7 @@ async def _read_json_response(proc, timeout=60):
     raise TimeoutError("No valid JSON response from browser")
 
 
-async def ensure_browser():
+async def ensure_browser() -> asyncio.subprocess.Process:
     global _browser_proc
     async with _browser_proc_lock:
         if _browser_proc is not None and _browser_proc.returncode is None:
@@ -125,7 +125,7 @@ async def call_tool(tool: str, args: dict = None, max_retries: int = 2) -> str:
     return f"BrowserMCP failed after {max_retries + 1} attempts: {last_error}"
 
 
-async def reset_browser():
+async def reset_browser() -> None:
     global _browser_proc
     async with _browser_proc_lock:
         if _browser_proc and _browser_proc.returncode is None:
@@ -143,5 +143,5 @@ async def reset_browser():
         _browser_proc = None
 
 
-async def stop_browser():
+async def stop_browser() -> None:
     await reset_browser()

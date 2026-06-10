@@ -18,7 +18,7 @@ from services.browser_client import call_tool as _call_browser_tool
 logger = logging.getLogger(__name__)
 
 
-async def _auto_click_apply():
+async def _auto_click_apply()_-> str :
     """Try to click the apply button by common text labels (Postularme, Apply, etc.)."""
     patterns = "Postularme|Postular|Apply|Aplicar|Aplica ahora|Iniciar postulación|Enviar postulación|Quiero postular"
     result = await _call_browser_tool("click_by_text", {"text": patterns})
@@ -113,7 +113,7 @@ async def _smart_fill_form(driver_caller, forms_json: str, profile: dict,
     errors = []
     answers_log = []
 
-    async def _fill_field(q):
+    async def _fill_field(q) -> None:
         nonlocal filled_count, skipped_count
         if q.type in (QuestionType.HIDDEN, QuestionType.PASSWORD):
             return
@@ -347,7 +347,7 @@ async def _batch_apply_one(url: str, profile: dict) -> dict:
     return result
 
 
-def register_tools(mcp: FastMCP):
+def register_tools(mcp: FastMCP) -> None:
     @mcp.tool()
     async def linkedin_search(query: str, location: str = "Chile") -> str:
         """Search for jobs on LinkedIn Jobs using a real browser (Selenium). Use your job title or keywords as query."""

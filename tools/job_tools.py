@@ -2,7 +2,7 @@ from mcp.server import FastMCP
 from services.job_service import search_jobs, search_jobs_with_ai
 from database.repos import profiles as profile_repo
 
-def register_tools(mcp: FastMCP):
+def register_tools(mcp: FastMCP) -> None:
     @mcp.tool()
     async def job_search(query: str, location: str = "Chile", remote_only: bool = False,
                           use_ai: bool = False) -> str:

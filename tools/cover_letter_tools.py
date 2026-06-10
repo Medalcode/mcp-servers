@@ -2,7 +2,7 @@ from mcp.server import FastMCP
 from database.repos import profiles as profile_repo
 from services.ai_provider import generate_cover_letter
 
-def register_tools(mcp: FastMCP):
+def register_tools(mcp: FastMCP) -> None:
     @mcp.tool()
     async def cover_letter_generate(job_title: str, company: str, job_description: str,
                                      tone: str = "professional", profile_id: int = None) -> str:

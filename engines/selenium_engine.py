@@ -49,12 +49,12 @@ def _detect_chromedriver() -> str:
 class SeleniumEngine(BrowserEngine):
     name = "selenium"
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._driver = None
         self._last_url = ""
         self._temp_dir = None
 
-    def _ensure_driver(self):
+    def _ensure_driver(self) -> None:
         if self._driver is not None:
             try:
                 self._driver.current_url
@@ -127,7 +127,7 @@ class SeleniumEngine(BrowserEngine):
             logger.error("Failed to start Chrome: %s", e)
             raise
 
-    def _scroll_into_view(self, element):
+    def _scroll_into_view(self, element)->None:
         try:
             self._driver.execute_script(
                 "arguments[0].scrollIntoView({block: 'center', behavior: 'instant'});",
@@ -137,7 +137,7 @@ class SeleniumEngine(BrowserEngine):
         except Exception:
             pass
 
-    def _wait_for_page_load(self, timeout=10):
+    def _wait_for_page_load(self, timeout=10)->None:
         try:
             WebDriverWait(self._driver, timeout).until(
                 lambda d: d.execute_script("return document.readyState") == "complete"
@@ -384,7 +384,7 @@ class SeleniumEngine(BrowserEngine):
         time.sleep(ms / 1000)
         return f"Waited {ms}ms"
 
-    def close(self):
+    def close(self) -> None:
         if self._driver is None:
             return
         try:

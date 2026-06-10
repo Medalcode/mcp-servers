@@ -10,7 +10,7 @@ from engines.base import BrowserEngine, PageResult, LinkInfo, FormInfo, FormFiel
 class StaticEngine(BrowserEngine):
     name = "static"
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._session = requests.Session()
         self._session.headers.update({
             "User-Agent": "Mozilla/5.0 (compatible; BrowserMCP/1.0)",
@@ -121,5 +121,5 @@ class StaticEngine(BrowserEngine):
     def wait(self, ms: int) -> str:
         return "Waiting requires a browser engine (Selenium or Playwright)"
 
-    def close(self):
+    def close(self) -> None:
         self._session.close()

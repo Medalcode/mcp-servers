@@ -10,7 +10,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-def register_tools(mcp: FastMCP):
+def register_tools(mcp: FastMCP) -> None:
     @mcp.tool()
     async def company_research(company_name: str) -> str:
         """Research a company: website, industry, size, culture, tech stack, and career page URL."""

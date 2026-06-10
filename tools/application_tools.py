@@ -1,7 +1,7 @@
 from mcp.server import FastMCP
 from database.repos import applications as app_repo
 
-def register_tools(mcp: FastMCP):
+def register_tools(mcp: FastMCP) -> None:
     @mcp.tool()
     async def application_list(status: str = None) -> str:
         """List all job applications, optionally filtered by status (to_apply, applied, interview, offer, rejected)."""

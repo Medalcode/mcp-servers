@@ -7,7 +7,7 @@ import sys
 logger = logging.getLogger("pathwise-pipeline")
 
 
-def main():
+def main() -> None:
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s %(levelname)s %(message)s",
@@ -69,7 +69,7 @@ def main():
         return
 
 
-async def _run_search(query: str, location: str, remote_only: bool):
+async def _run_search(query: str, location: str, remote_only: bool) -> None:
     from services.scraper_engine import search_all
     from database import init_db
     init_db()

@@ -27,7 +27,7 @@ class QuestionType(Enum):
 class FormQuestion:
     def __init__(self, qtype: QuestionType, label: str, name: str,
                  required: bool = False, options: list = None,
-                 placeholder: str = "", tag: str = "input"):
+                 placeholder: str = "", tag: str = "input") -> None:
         self.type = qtype
         self.label = label
         self.name = name
@@ -36,7 +36,7 @@ class FormQuestion:
         self.placeholder = placeholder
         self.tag = tag
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"FormQuestion({self.type.value}, '{self.label[:30]}', name='{self.name}')"
 
 

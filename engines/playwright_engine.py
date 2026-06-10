@@ -5,19 +5,19 @@ import re
 from urllib.parse import urlparse
 
 from engines.base import BrowserEngine, PageResult, LinkInfo, FormInfo, FormField
-
+from typing import Any
 
 class PlaywrightEngine(BrowserEngine):
     name = "playwright"
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._page = None
         self._browser = None
         self._playwright = None
         self._available = False
         self._loop = None
 
-    async def _ensure_browser(self):
+    async def _ensure_browser(self) -> bool:
         if self._page:
             return True
         try:
@@ -31,7 +31,7 @@ class PlaywrightEngine(BrowserEngine):
             self._available = False
             return False
 
-    def _sync_run(self, coro):
+    def _sync_run(self, coro:Any) -> Any:
         try:
             loop = asyncio.get_running_loop()
             has_running_loop = loop.is_running()
@@ -204,7 +204,7 @@ class PlaywrightEngine(BrowserEngine):
         except Exception as e:
             return f"Wait failed: {e}"
 
-    def close(self):
+    def close(self) -> None:
         try:
             if self._browser:
                 self._sync_run(self._browser.close())
