@@ -10,7 +10,10 @@ venv/
 *.db-shm
 *.db-wal
 data/
-dist/
-*.egg-info/
 profile.json
 config.json
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+*.env.local
+*.log

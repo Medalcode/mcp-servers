@@ -11,11 +11,23 @@ import json
 import logging
 import os
 import re
-from urllib.parse import urlparse
+from urllib.parse import urlparse, quote
 
 from services.browser_client import call_tool as _call_browser_tool
 
 logger = logging.getLogger(__name__)
+
+
+def _css_escape(value: str) -> str:
+    escaped = value.replace("\\", "\\\\").replace('"', '\\"')
+    return f'"{escaped}"'
+
+
+def _safe_selector(tag: str, name: str, value: str = None) -> str:
+    sel = f'{tag}[name={_css_escape(name)}]'
+    if value is not None:
+        sel += f'[value={_css_escape(value)}]'
+    return sel
 
 
 async def _auto_click_apply():
@@ -27,23 +39,8 @@ async def _auto_click_apply():
 
 
 async def _should_apply(page_text: str, profile: dict) -> tuple[bool, str]:
-    """Check if the job matches the user's profile. Only accepts remote positions."""
+    """Check if the job matches the user's profile."""
     text_lower = (page_text or "").lower()
-
-    # Quick reject: presencial/híbrido without remote option
-    non_remote_keywords = ["presencial", "trabajo presencial", "oficina", "asistir a oficina"]
-    remote_keywords = ["remoto", "remote", "100% remoto", "teletrabajo", "home office", "trabajo desde casa"]
-    hybrid_keywords = ["híbrido", "hibrido", "mixto", "presencial/remoto"]
-
-    has_remote = any(kw in text_lower for kw in remote_keywords)
-    has_hybrid = any(kw in text_lower for kw in hybrid_keywords)
-
-    if not has_remote and not has_hybrid:
-        if any(kw in text_lower for kw in non_remote_keywords):
-            return False, "Oferta presencial, solo aplicamos a remoto"
-
-    if has_hybrid and not has_remote:
-        return False, "Oferta híbrida, solo aplicamos a 100% remoto"
 
     skills = profile.get("skills", [])
     exp = profile.get("experience", [])
@@ -54,20 +51,24 @@ async def _should_apply(page_text: str, profile: dict) -> tuple[bool, str]:
             current_edu = f"{e.get('degree', '')} en {e.get('school', '')}"
             break
 
-    prompt = f"""Eres un asesor de postulaciones. Dado el perfil del usuario y la descripción de la oferta, determina si DEBE postular o NO.
+    skills_str = ", ".join(skills[:15])
+    exp_str = "; ".join(f"{e['title']} en {e['company']}" for e in exp[:3])
+    text_snippet = (page_text or "")[:1500]
 
-IMPORTANTE: Solo aceptamos trabajo 100% remoto. Rechaza cualquier oferta presencial o híbrida.
-
-Perfil:
-- Nivel: Estudiante/práctica/junior (en curso: {current_edu})
-- Skills: {', '.join(skills[:15])}
-- Experiencia: {'; '.join(f"{e['title']} en {e['company']}" for e in exp[:3])}
-
-Oferta (primeros 1500 caracteres):
-{page_text[:1500]}
-
-Responde SOLO con JSON:
-{{"apply": true/false, "reason": "explicación corta en español"}}"""
+    msg = {
+        "role": "system",
+        "content": "Eres un asesor de postulaciones. Responde solo con JSON.",
+        "instruction": "Dado el perfil del usuario y la descripcion de la oferta, determina si DEBE postular o NO.",
+        "context": "El usuario esta abierto a cualquier modalidad (presencial, hibrido o remoto).",
+        "profile": {
+            "level": f"Estudiante/practica/junior (en curso: {current_edu})",
+            "skills": skills_str,
+            "experience": exp_str
+        },
+        "offer_text": text_snippet
+    }
+    prompt = json.dumps(msg, ensure_ascii=False)
+    prompt = f"Analiza esta oferta de trabajo:\n{prompt}\n\nResponde SOLO con JSON: {{\"apply\": true/false, \"reason\": \"explicacion corta en espanol\"}}"
 
     try:
         result = await _call_ai(prompt[:3000])
@@ -94,6 +95,51 @@ async def _get_context_help(question: FormQuestion, profile: dict) -> str:
     return ""
 
 
+async def _fill_field_browser(driver_caller, q: FormQuestion, profile: dict) -> tuple[int, str]:
+    if q.type in (QuestionType.HIDDEN, QuestionType.PASSWORD):
+        return 0, ""
+    if q.type == QuestionType.RADIO:
+        answer = generate_radio_answer(q, profile)
+        answer_lower = answer.lower()
+        for option in q.options or []:
+            if option.lower().strip() == answer_lower:
+                try:
+                    await driver_caller("click", {"selector": _safe_selector("input", q.name, option)})
+                    return 1, f"  [{q.type.value}] {q.label[:40]} -> {answer}"
+                except Exception as e:
+                    logger.warning("radio click '%s' option '%s': %s", q.name, option, e)
+        try:
+            await driver_caller("click", {"selector": _safe_selector("input", q.name, answer)})
+            return 1, f"  [{q.type.value}] {q.label[:40]} -> {answer}"
+        except Exception as e:
+            logger.warning("radio fallback click '%s': %s", q.name, e)
+        return 0, ""
+    if q.type in (QuestionType.SELECT,):
+        answer = generate_select_answer(q, profile)
+        if answer:
+            try:
+                await driver_caller("fill", {"selector": _safe_selector("select", q.name), "value": answer})
+                return 1, f"  [{q.type.value}] {q.label[:40]} -> {answer}"
+            except Exception as e:
+                logger.warning("Select '%s': %s", q.name, e)
+                return 0, str(e)[:60]
+        return 0, ""
+    if q.type in (QuestionType.TEXTAREA, QuestionType.TEXT,
+                  QuestionType.EMAIL, QuestionType.TEL, QuestionType.NUMBER):
+        answer = generate_answer(q, profile)
+        ctx = await _get_context_help(q, profile)
+        if ctx:
+            answer = ctx
+        if q.name:
+            try:
+                await driver_caller("fill", {"selector": _safe_selector("*", q.name), "value": answer})
+                return 1, f"  [{q.type.value}] {q.label[:40]} -> {answer[:50]}..."
+            except Exception as e:
+                return 0, f"Field '{q.name}': {str(e)[:60]}"
+        return 0, ""
+    return 0, ""
+
+
 async def _smart_fill_form(driver_caller, forms_json: str, profile: dict,
                            submit: bool = True) -> str:
     questions = parse_forms_json(forms_json)
@@ -113,74 +159,19 @@ async def _smart_fill_form(driver_caller, forms_json: str, profile: dict,
     errors = []
     answers_log = []
 
-    async def _fill_field(q):
-        nonlocal filled_count, skipped_count
-        if q.type in (QuestionType.HIDDEN, QuestionType.PASSWORD):
-            return
-        if q.type == QuestionType.RADIO:
-            answer = generate_radio_answer(q, profile)
-            answer_lower = answer.lower()
-            matched = False
-            for option in q.options or []:
-                if option.lower().strip() == answer_lower:
-                    try:
-                        await driver_caller("click", {"selector": f"input[name='{q.name}'][value='{option}']"})
-                        matched = True
-                        break
-                    except Exception as e:
-                        logger.warning("radio click '%s' option '%s': %s", q.name, option, e)
-            if not matched:
-                try:
-                    await driver_caller("click", {"selector": f"input[name='{q.name}'][value='{answer}']"})
-                except Exception as e:
-                    logger.warning("radio fallback click '%s': %s", q.name, e)
-            answers_log.append(f"  [{q.type.value}] {q.label[:40]} -> {answer}")
-            filled_count += 1
-        elif q.type in (QuestionType.SELECT,):
-            answer = generate_select_answer(q, profile)
-            if answer:
-                try:
-                    await driver_caller("fill", {"selector": f"select[name='{q.name}']", "value": answer})
-                    answers_log.append(f"  [{q.type.value}] {q.label[:40]} -> {answer}")
-                    filled_count += 1
-                except Exception as e:
-                    err = f"Select '{q.name}': {e}"
-                    errors.append(err)
-                    logger.warning(err)
-            else:
-                skipped_count += 1
-        elif q.type in (QuestionType.TEXTAREA, QuestionType.TEXT,
-                        QuestionType.EMAIL, QuestionType.TEL, QuestionType.NUMBER):
-            answer = generate_answer(q, profile)
-            ctx = await _get_context_help(q, profile)
-            if ctx:
-                answer = ctx
-            selector = ""
-            if q.name:
-                selector = f"[name='{q.name}']"
-            if selector:
-                try:
-                    await driver_caller("fill", {"selector": selector, "value": answer})
-                    answers_log.append(f"  [{q.type.value}] {q.label[:40]} -> {answer[:50]}...")
-                    filled_count += 1
-                except Exception as e:
-                    errors.append(f"Field '{q.name}': {e}")
-            else:
-                skipped_count += 1
-        else:
-            skipped_count += 1
-
     # Step 1: Fill salary-related fields first
     salary_qs = [q for q in questions if re.search(r'sueldo|salario|renta|pretensión', q.label.lower())]
     for q in salary_qs:
-        await _fill_field(q)
+        cnt, log = await _fill_field_browser(driver_caller, q, profile)
+        filled_count += cnt
+        if log:
+            answers_log.append(log)
 
     # Step 2: If there's a salary form, submit it first
     if salary_qs and submit:
         try:
             await driver_caller("click_by_text", {"text": "Postularme|Postular|Actualizar"})
             await asyncio.sleep(3)
-            # Re-detect forms after salary submit
             new_forms = await driver_caller("forms", {})
             new_qs = parse_forms_json(new_forms)
             if new_qs:
@@ -188,12 +179,17 @@ async def _smart_fill_form(driver_caller, forms_json: str, profile: dict,
         except Exception as e:
             logger.warning("Salary form submit/re-detect: %s", e)
 
-    # Step 3: Fill remaining fields (preguntas, etc.)
+    # Step 3: Fill remaining fields
     done_names = {q.name for q in salary_qs}
     for q in questions:
         if q.name in done_names:
             continue
-        await _fill_field(q)
+        cnt, log = await _fill_field_browser(driver_caller, q, profile)
+        filled_count += cnt
+        if log:
+            answers_log.append(log)
+        else:
+            skipped_count += 1
 
     # Step 4: Final submit
     if submit and filled_count > 0:
@@ -285,44 +281,10 @@ async def _batch_apply_one(url: str, profile: dict) -> dict:
     errors_list = []
 
     for q in questions:
-        if q.type in (QuestionType.HIDDEN, QuestionType.PASSWORD):
-            continue
-        if q.type == QuestionType.RADIO:
-            answer = generate_radio_answer(q, profile)
-            answer_lower = answer.lower()
-            matched = False
-            for option in q.options or []:
-                if option.lower().strip() == answer_lower:
-                    try:
-                        await _call_browser_tool("click", {
-                            "selector": f"input[name='{q.name}'][value='{option}']"
-                        })
-                        matched = True
-                        filled_count += 1
-                        break
-                    except Exception as e:
-                        logger.warning("batch_apply radio click '%s': %s", q.name, e)
-            if not matched:
-                try:
-                    await _call_browser_tool("click", {
-                        "selector": f"input[name='{q.name}'][value='{answer_lower}']"
-                    })
-                    filled_count += 1
-                except Exception as e:
-                    logger.warning("batch_apply radio fallback click '%s': %s", q.name, e)
-        elif q.type in (QuestionType.TEXTAREA, QuestionType.TEXT,
-                        QuestionType.EMAIL, QuestionType.TEL):
-            answer = generate_answer(q, profile)
-            ctx = await _get_context_help(q, profile)
-            if ctx:
-                answer = ctx
-            if q.name:
-                try:
-                    el = f"[name='{q.name}']"
-                    await _call_browser_tool("fill", {"selector": el, "value": answer})
-                    filled_count += 1
-                except Exception as e:
-                    errors_list.append(str(e)[:60])
+        cnt, log = await _fill_field_browser(lambda t, a: _call_browser_tool(t, a), q, profile)
+        filled_count += cnt
+        if log and not cnt:
+            errors_list.append(log)
 
     if filled_count > 0:
         await asyncio.sleep(0.5)
@@ -351,7 +313,7 @@ def register_tools(mcp: FastMCP):
     @mcp.tool()
     async def linkedin_search(query: str, location: str = "Chile") -> str:
         """Search for jobs on LinkedIn Jobs using a real browser (Selenium). Use your job title or keywords as query."""
-        url = f"https://www.linkedin.com/jobs/search/?keywords={query.replace(' ', '%20')}&location={location.replace(' ', '%20')}"
+        url = f"https://www.linkedin.com/jobs/search/?keywords={quote(query)}&location={quote(location)}"
         result = await _call_browser_tool("navigate", {"url": url})
         return result
 

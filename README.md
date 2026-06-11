@@ -2,7 +2,7 @@
 
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue.svg)]()
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-134%20passing-success.svg)]()
+[![Tests](https://img.shields.io/badge/tests-176%20passing-success.svg)]()
 
 > **Última actualización**: 9 Junio 2026 — Refactor completo de AI Provider, nuevos scrapers, robustez general.
 [![Lint](https://img.shields.io/badge/lint-ruff-passing-brightgreen.svg)]()
@@ -98,9 +98,12 @@ python filesystem_server.py
 
 ## Seguridad
 
-- **bcrypt** para passwords de administrador (fallback SHA-256 si no disponible)
+- **JS injection prevention**: credenciales escapadas con `json.dumps()` en lugar de f-strings
+- **CSS selector sanitization**: helpers `_css_escape()`/`_safe_selector()` evitan inyección en selectores
+- **Env whitelist**: browser subprocess hereda solo 18 vars seguras
+- **URL validation**: rechaza credenciales embebidas, IPs privadas, hostnames no resolubles
+- **Script sandbox**: blocklist de APIs peligrosas (`eval`, `Function`, `fetch`, `WebSocket`, etc.)
 - **DNS rebinding prevention**: re-validación de IP post-redirect
-- **run_script sandbox**: bloquea fetch/XHR/WebSocket en scripts inyectados
 - **Path traversal protegido**: todos los servers validan rutas contra directorios permitidos
 - **SQL injection prevenido**: parámetros parametrizados + CHECK constraints
 - **Atomic writes**: credenciales escritas via tempfile + rename
@@ -108,7 +111,7 @@ python filesystem_server.py
 - **Protección de Protocolo MCP**: Salida de logs dirigida a `stderr` para evitar corrupciones en el canal JSON-RPC (`stdout`).
 - **Concurrencia DB (Thread-Safe)**: Manejo de conexiones SQLite aisladas por hilo (thread-local) con modo WAL habilitado.
 
-## Tests — 134 tests, todos pasando
+## Tests — 176 tests, todos pasando
 
 El proyecto cuenta con una suite de pruebas utilizando `pytest` y `pytest-asyncio`. Las pruebas incluyen fixtures automatizados con bases de datos en memoria para no afectar el entorno local.
 
@@ -132,6 +135,8 @@ pytest tests/ -v
 | Memory | 8 | CRUD, búsqueda, categorías, stats |
 | Tasks | 8 | CRUD, dependencias, stats |
 | Database MCP | 3 | SQLite queries, tablas, describe |
+| Browser Security | 32 | URL validation, script sandbox, DNS, private IPs |
+| Auto-Apply Security | 10 | CSS escape, safe selectors |
 
 ## Tech Stack
 
@@ -162,7 +167,7 @@ mcp-servers/
 ├── tools/              # MCP tool definitions (profile, job, application, cover letter, CV, auto-apply, interview)
 ├── services/           # Business logic (AI, CV, form filler, job search, company research, browser client)
 │   └── scrapers/       # Job board scrapers (BeBee, Randstad, GetOnBoard, Indeed, etc.)
-├── tests/              # 134 tests
+├── tests/              # 176 tests
 ├── github_server.py    # GitHub API server
 ├── filesystem_server.py
 └── pyproject.toml
@@ -181,6 +186,21 @@ mcp-servers/
 - **Easy Apply loop**: verificación de modal cerrado tras cada click para evitar ciclos infinitos.
 - **Job tools**: warning cuando se truncan resultados >25.
 - **134/134 tests pasando** (el test de IntegrityError ahora funciona gracias al CHECK constraint).
+
+### 2026-06-11 — Seguridad, calidad, testing + 42 nuevos tests
+- **JS injection prevention**: credenciales escapadas con `json.dumps()` en LinkedIn y Auto-Apply
+- **CSS selector sanitization**: helpers `_css_escape()`/`_safe_selector()` en Auto-Apply
+- **Env whitelist**: browser subprocess hereda solo 18 vars seguras
+- **URL validation reforzado**: rechaza credenciales embebidas, IPs privadas, hostnames sin resolución DNS
+- **Script sandbox mejorado**: blocklist de `eval`, `Function`, `setTimeout`, `WebSocket` y más (corregido bug de case-sensitivity que dejaba pasar scripts peligrosos)
+- **Import-time `load_dotenv()` eliminado** de scrapers/base.py y la mayoría de los servidores
+- **SQLite connection pooling** thread-local con WAL en memory_engine y task_tracker
+- **Cycle detection BFS** en dependencias de TaskTracker
+- **`run_server()` unificado**: 11 servidores comparten el mismo boilerplate `main()` via `servers/server_base.py`
+- **`generate_answer()` refactorizada**: estrategia extraída a `_build_strategies()` con todos los formatos originales
+- **Dead code eliminado**: `_extract_textarea_questions()`, dependencia `bcrypt`
+- **42 nuevos tests de seguridad**: 32 para browser (URL validation, script sandbox, DNS) + 10 para Auto-Apply (CSS escape, selectors)
+- **176/176 tests pasando**
 
 ### 2026-06 — 5 nuevos servidores MCP + limpieza masiva
 - **MemoryMCP**: memoria persistente con SQLite (key-value, búsqueda, contextos por sesión)

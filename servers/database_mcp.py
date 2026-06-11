@@ -1,6 +1,4 @@
-import os
 from mcp.server.fastmcp import FastMCP
-from dotenv import load_dotenv
 from db_mcp.engine import (
     query_sqlite, query_duckdb, list_sqlite_tables,
     describe_sqlite_table, list_duckdb_tables,
@@ -34,10 +32,11 @@ async def duckdb_tables(path: str = ":memory:") -> str:
     return await list_duckdb_tables(path)
 
 
+from servers.server_base import run_server
+
+
 def main():
-    env_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env")
-    load_dotenv(env_path)
-    mcp.run(transport="stdio")
+    run_server(mcp)
 
 
 if __name__ == "__main__":

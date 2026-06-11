@@ -1,6 +1,4 @@
-import os
 from mcp.server.fastmcp import FastMCP
-from dotenv import load_dotenv
 from task_tracker.engine import (
     create, list_tasks, update, complete, delete,
     add_dependency, remove_dependency, get_task, stats, brainstorm,
@@ -63,10 +61,11 @@ async def task_brainstorm(title: str, ideas: str) -> str:
     return brainstorm(title, ideas)
 
 
+from servers.server_base import run_server
+
+
 def main():
-    env_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env")
-    load_dotenv(env_path)
-    mcp.run(transport="stdio")
+    run_server(mcp)
 
 
 if __name__ == "__main__":

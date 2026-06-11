@@ -12,9 +12,6 @@ from urllib.parse import urlparse, unquote
 
 import httpx
 from bs4 import BeautifulSoup
-from dotenv import load_dotenv
-
-load_dotenv()
 
 logger = logging.getLogger("scrapemcp.base")
 

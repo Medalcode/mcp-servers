@@ -1,10 +1,8 @@
-import asyncio
 import json
 import logging
 import os
 import sys
 from mcp.server.fastmcp import FastMCP
-from dotenv import load_dotenv
 from services.browser_client import call_tool, ensure_browser, stop_browser
 
 logger = logging.getLogger(__name__)
@@ -20,7 +18,7 @@ async def _ensure_linkedin_session(email: str = None, password: str = None):
         return
 
     await ensure_browser()
-    await call_tool("navigate", {"url": "https://www.linkedin.com"})
+    await call_tool("navigate", {"url": "https://www.linkedin.com/feed"})
     await call_tool("wait", {"ms": 2000})
     page_text = await call_tool("extract", {"selector": "body"})
 
@@ -40,15 +38,61 @@ async def _ensure_linkedin_session(email: str = None, password: str = None):
 
     logger.info("Logging in to LinkedIn...")
     await call_tool("navigate", {"url": "https://www.linkedin.com/login"})
-    await call_tool("wait", {"ms": 2000})
-    await call_tool("fill", {"selector": "#username", "value": email})
-    await call_tool("fill", {"selector": "#password", "value": password})
-    await call_tool("click", {"selector": "button[type=submit]"})
-    await call_tool("wait", {"ms": 5000})
+    await call_tool("wait", {"ms": 3000})
 
-    check = await call_tool("extract", {"selector": "body"})
-    if "checkpoint" in check.lower() or "security" in check.lower():
-        raise RuntimeError("LinkedIn requires security verification - log in manually via Chrome")
+    # Fill visible inputs using native setter + InputEvent
+    safe_email = json.dumps(email)
+    safe_pass = json.dumps(password)
+    await call_tool("run_script", {"script": f"""
+        var visibleInputs = [];
+        var inputs = document.querySelectorAll('input');
+        for (var i = 0; i < inputs.length; i++) {{
+            if (inputs[i].offsetParent !== null) {{
+                visibleInputs.push(inputs[i]);
+            }}
+        }}
+        var inpEmail = null, inpPw = null;
+        for (var i = 0; i < visibleInputs.length; i++) {{
+            if (visibleInputs[i].type === 'email') {{ inpEmail = visibleInputs[i]; }}
+            if (visibleInputs[i].type === 'password') {{ inpPw = visibleInputs[i]; }}
+        }}
+        if (inpEmail) {{
+            var ns = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+            ns.call(inpEmail, {safe_email});
+            inpEmail.dispatchEvent(new InputEvent('input', {{bubbles: true, inputType: 'insertText', data: {safe_email}}}));
+            inpEmail.dispatchEvent(new Event('change', {{bubbles: true}}));
+        }}
+        if (inpPw) {{
+            var ns = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+            ns.call(inpPw, {safe_pass});
+            inpPw.dispatchEvent(new InputEvent('input', {{bubbles: true, inputType: 'insertText', data: {safe_pass}}}));
+            inpPw.dispatchEvent(new Event('change', {{bubbles: true}}));
+        }}
+    """})
+    await call_tool("wait", {"ms": 1000})
+
+    # Click the sign-in button
+    await call_tool("run_script", {"script": """
+        var btns = document.querySelectorAll('button');
+        for (var i = 0; i < btns.length; i++) {
+            var t = btns[i].innerText.trim();
+            if (t === 'Iniciar sesi\u00f3n' || t === 'Sign in' || t === 'Sign In') {
+                btns[i].click();
+                break;
+            }
+        }
+    """})
+    await call_tool("wait", {"ms": 8000})
+
+    check = await call_tool("run_script", {"script": "return window.location.href"})
+    if "checkpoint" in check.lower():
+        profile_path = os.environ.get("CHROME_USER_DATA_DIR", "(temp)")
+        raise RuntimeError(
+            f"LinkedIn requires device verification (checkpoint). "
+            f"Set BROWSER_HEADLESS=false and CHROME_USER_DATA_DIR={profile_path} "
+            f"then run the browser with a display to verify manually. "
+            f"The session will persist for future headless logins."
+        )
 
     _linkedin_ready = True
     logger.info("LinkedIn login successful")
@@ -285,24 +329,17 @@ async def linkedin_easy_apply(url: str, resume_path: str = "") -> str:
     return f"Easy Apply completed in {steps} steps.\n{result_text}"
 
 
+from servers.server_base import run_server
+
+
 def main():
-    logging.basicConfig(
-        stream=sys.stderr,
-        level=logging.INFO,
-        format="%(asctime)s %(levelname)s %(name)s %(message)s",
-        datefmt="%H:%M:%S",
-    )
+    import asyncio
     import atexit
 
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     atexit.register(lambda: loop.run_until_complete(stop_browser()))
-    load_dotenv()
-    transport = os.environ.get("MCP_TRANSPORT", "stdio")
-    if transport == "sse":
-        mcp.run(transport="sse", host=os.environ.get("MCP_HOST", "0.0.0.0"), port=int(os.environ.get("MCP_PORT", "8080")))
-    else:
-        mcp.run(transport="stdio")
+    run_server(mcp, use_sse=True, setup_logging=True, env_path=".")
 
 
 if __name__ == "__main__":
