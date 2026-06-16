@@ -4,7 +4,7 @@
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Tests](https://img.shields.io/badge/tests-176%20passing-success.svg)]()
 
-> **Última actualización**: 9 Junio 2026 — Refactor completo de AI Provider, nuevos scrapers, robustez general.
+> **Última actualización**: 16 Junio 2026 — Auditoría de seguridad, corrección de fugas de recursos y estabilidad.
 [![Lint](https://img.shields.io/badge/lint-ruff-passing-brightgreen.svg)]()
 
 Monorepo unificado con 11 servidores MCP (Model Context Protocol) + herramientas de carrera Pathwise.
@@ -174,6 +174,17 @@ mcp-servers/
 ```
 
 ## Recent Improvements
+
+### 2026-06-16 — Security Audit, Resource Leaks & Stability Fixes
+- **Resource Leaks**: Fixed SQLite connection leaks in `db_mcp/engine.py` using `contextlib.closing` and `task_tracker/engine.py`.
+- **Database Safety**: Enforced read-only mode for SQLite and DuckDB queries to prevent destructive SQL execution, and enabled `PRAGMA foreign_keys=ON` for the task tracker.
+- **Atomic Operations**: Wrapped profile creation in `database/repos/profiles.py` inside a transaction block.
+- **Path Traversal Guards**: Added `CV_ALLOWED_PATH` validation in `tools/cv_tools.py` and fixed variable shadowing in `filesystem_server.py`.
+- **Event Loop Leak**: Fixed dangling asyncio event loops in `engines/playwright_engine.py` by properly closing them on exit.
+- **Billion Laughs XML**: Replaced `xml.etree` with `defusedxml` in `scrapers/sitemap.py` to mitigate entity expansion attacks.
+- **SSRF Protection**: Disabled `follow_redirects` across all scrapers to prevent Server-Side Request Forgery bypasses via HTTP redirects.
+- **AI Provider Resiliency**: Added intelligent HTTP 5xx retry logic in `router/providers/base.py` supporting `Retry-After` headers and fixed prompt truncation in `services/ai_provider.py`.
+- **Testing**: Updated `test_db_mcp.py` for read-only database support. 176/176 tests passing successfully.
 
 ### 2026-06-09 — Refactor AI Provider + nuevos scrapers + robustez
 - **AI Provider reescrito**: `RouterEngine` + fallback Groq → Gemini → Cerebras. Sin dependencia de RouteMCP HTTP.

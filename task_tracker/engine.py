@@ -25,6 +25,7 @@ def _get_db():
         _local.db_path = db_path
         conn = sqlite3.connect(db_path, timeout=10.0)
         conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA foreign_keys=ON")
         conn.execute("""
             CREATE TABLE IF NOT EXISTS tasks (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -103,14 +104,12 @@ def update(task_id: int, **kwargs) -> str:
     allowed = {"title", "description", "priority", "status", "project", "deadline", "tags"}
     updates = {k: v for k, v in kwargs.items() if k in allowed and v is not None}
     if not updates:
-        conn.close()
         return "No valid fields to update"
     updates["updated_at"] = now
     set_clause = ", ".join(f"{k} = ?" for k in updates)
     values = list(updates.values()) + [task_id]
     cur = conn.execute(f"UPDATE tasks SET {set_clause} WHERE id = ?", values)
     if cur.rowcount == 0:
-        conn.close()
         return f"Task #{task_id} not found"
     conn.commit()
     updated_fields = ", ".join(updates.keys())
@@ -177,7 +176,6 @@ def get_task(task_id: int) -> str:
     cur = conn.execute("SELECT * FROM tasks WHERE id = ?", (task_id,))
     row = cur.fetchone()
     if not row:
-        conn.close()
         return f"Task #{task_id} not found"
     columns = [c[1] for c in conn.execute("PRAGMA table_info(tasks)").fetchall()]
     task = dict(zip(columns, row))

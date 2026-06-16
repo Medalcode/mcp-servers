@@ -24,8 +24,8 @@ logger.info("Filesystem MCP server starting, allowed path: %s", ALLOWED_PATH)
 def _check_path(path: str) -> Path:
     full = (ALLOWED_PATH / path).resolve()
     resolved = str(full)
-    allowed = str(ALLOWED_PATH)
-    if not (resolved == allowed or resolved.startswith(allowed + "/")):
+    allowed_str = str(ALLOWED_PATH)
+    if not (resolved == allowed_str or resolved.startswith(allowed_str + "/")):
         raise ValueError(f"Path outside allowed directory: {path}")
     return full
 
@@ -90,15 +90,22 @@ def file_info(path: str) -> str:
 def search_files(pattern: str, path: str = "") -> str:
     logger.info("search_files called: pattern=%s path=%s", pattern, path)
     full = _check_path(path)
-    matches = sorted(full.rglob(pattern))
+    matches = full.rglob(pattern)
     max_depth = 5
+    max_results = 100
     result = []
     for m in matches:
-        rel = m.relative_to(ALLOWED_PATH)
-        depth = len(rel.parts)
-        if depth <= max_depth:
-            result.append(str(rel))
-    return "\n".join(result) or "No matches"
+        if len(result) >= max_results:
+            result.append(f"... [limit of {max_results} reached]")
+            break
+        try:
+            rel = m.relative_to(ALLOWED_PATH)
+            depth = len(rel.parts)
+            if depth <= max_depth:
+                result.append(str(rel))
+        except ValueError:
+            continue
+    return "\n".join(sorted(result)) or "No matches"
 
 
 @mcp.tool()

@@ -109,7 +109,7 @@ class BaseScraper:
         _validate_url(url)
         await self._rate_limit_wait()
         self._session.headers["User-Agent"] = random.choice(USER_AGENTS)
-        resp = await self._session.get(url, follow_redirects=True)
+        resp = await self._session.get(url, follow_redirects=False)
         resp.raise_for_status()
         soup = BeautifulSoup(resp.content, "html5lib")
         resolved = str(resp.url)

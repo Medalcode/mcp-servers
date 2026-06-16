@@ -44,23 +44,23 @@ def list_profiles(user_id=1):
 
 def create_profile(user_id, name, type="general", is_default=False, title="", summary="", skills=None):
     conn = get_connection()
-    if is_default:
-        conn.execute("UPDATE profiles SET is_default=0 WHERE user_id=?", (user_id,))
-    cur = conn.execute("INSERT INTO profiles (user_id, name, type, is_default) VALUES (?,?,?,?)",
-                       (user_id, name, type, 1 if is_default else 0))
-    profile_id = cur.lastrowid
-    if title or summary:
-        conn.execute(
-            "INSERT INTO personal_info (profile_id, current_title, summary) VALUES (?, ?, ?)",
-            (profile_id, title, summary)
-        )
-    if skills:
-        for skill_name in skills:
+    with conn:
+        if is_default:
+            conn.execute("UPDATE profiles SET is_default=0 WHERE user_id=?", (user_id,))
+        cur = conn.execute("INSERT INTO profiles (user_id, name, type, is_default) VALUES (?,?,?,?)",
+                           (user_id, name, type, 1 if is_default else 0))
+        profile_id = cur.lastrowid
+        if title or summary:
             conn.execute(
-                "INSERT INTO skills (profile_id, name, category) VALUES (?, ?, ?)",
-                (profile_id, skill_name, "")
+                "INSERT INTO personal_info (profile_id, current_title, summary) VALUES (?, ?, ?)",
+                (profile_id, title, summary)
             )
-    conn.commit()
+        if skills:
+            for skill_name in skills:
+                conn.execute(
+                    "INSERT INTO skills (profile_id, name, category) VALUES (?, ?, ?)",
+                    (profile_id, skill_name, "")
+                )
     return {"id": profile_id, "name": name, "type": type, "isDefault": is_default}
 
 def delete_profile(profile_id, user_id=1):

@@ -32,12 +32,18 @@ async def retry_ask(provider_name: str, client: httpx.AsyncClient, url: str, pay
     for attempt in range(_MAX_RETRIES):
         try:
             resp = await client.post(url, json=payload, headers=headers, timeout=timeout)
-            if resp.status_code == 429:
-                raw = resp.headers.get("Retry-After", str(_RETRY_DELAYS[attempt]))
-                try:
-                    retry_after = int(raw)
-                except ValueError:
+            if resp.status_code == 429 or resp.status_code >= 500:
+                if resp.status_code == 429:
+                    raw = resp.headers.get("Retry-After", str(_RETRY_DELAYS[attempt]))
+                    try:
+                        retry_after = int(raw)
+                    except ValueError:
+                        retry_after = _RETRY_DELAYS[attempt]
+                else:
                     retry_after = _RETRY_DELAYS[attempt]
+                
+                if attempt == _MAX_RETRIES - 1:
+                    resp.raise_for_status()
                 await asyncio.sleep(retry_after)
                 continue
             resp.raise_for_status()

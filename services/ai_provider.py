@@ -68,7 +68,7 @@ Responde ÚNICAMENTE con un JSON con esta estructura:
 }}
 Usa null para campos sin datos, array vacío para listas sin datos."""
     try:
-        result = await _call_ai("cv_parse -- " + raw_text[:1000])
+        result = await _call_ai(prompt)
         cleaned = _clean_json(result)
         return json.loads(cleaned)
     except Exception as e:
@@ -112,7 +112,7 @@ Requisitos:
 - NO incluir dirección, fecha, ni firma
 - Genera SOLO el cuerpo de la carta"""
     try:
-        result = await _call_ai("cover_letter -- " + job_title[:50])
+        result = await _call_ai(prompt)
         return _clean_json(result)
     except Exception as e:
         return f"Error generando carta: {e}"
@@ -149,7 +149,7 @@ Responde ÚNICAMENTE con JSON:
   {{"title": str, "description": str, "keySkills": [str], "searchKeywords": [str], "targetRoles": [str]}}
 ]}}"""
     try:
-        result = await _call_ai("personas -- " + (pi.get('currentTitle', '') or 'profile'))
+        result = await _call_ai(prompt)
         cleaned = _clean_json(result)
         data = json.loads(cleaned)
         return data.get("profiles", [])
