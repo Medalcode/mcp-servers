@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pathwise Dashboard</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar glass">
+            <div class="logo">
+                <i class="fa-solid fa-rocket"></i>
+                <h2>Pathwise</h2>
+            </div>
+            
+            <nav class="menu">
+                <button class="menu-btn active" id="btn-search"><i class="fa-solid fa-magnifying-glass"></i> Escáner de Empleos</button>
+                <button class="menu-btn" id="btn-register"><i class="fa-solid fa-user-plus"></i> Registro Masivo</button>
+                <button class="menu-btn" id="btn-apply"><i class="fa-solid fa-paper-plane"></i> Auto Apply</button>
+            </nav>
+
+            <div class="metrics-container">
+                <h3>Métricas de Campaña</h3>
+                <div class="metric-card">
+                    <span class="metric-value" id="m-scanned">0</span>
+                    <span class="metric-label">Empleos Escaneados</span>
+                </div>
+                <div class="metric-card">
+                    <span class="metric-value" id="m-accounts">0</span>
+                    <span class="metric-label">Cuentas SF Creadas</span>
+                </div>
+                <div class="metric-card">
+                    <span class="metric-value" id="m-logins">0</span>
+                    <span class="metric-label">Logins Exitosos</span>
+                </div>
+                <div class="metric-card">
+                    <span class="metric-value" id="m-applications">0</span>
+                    <span class="metric-label">Postulaciones</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <header class="topbar">
+                <h1>Panel de Control</h1>
+                <div class="user-profile">
+                    <img src="https://ui-avatars.com/api/?name=Jonatthan+Medalla&background=7A28CB&color=fff" alt="User">
+                </div>
+            </header>
+
+            <!-- Actions Panel -->
+            <section class="actions-panel glass">
+                <div class="action-section" id="section-search">
+                    <h2>Escáner de Empleos</h2>
+                    <p>Busca oportunidades en todos los portales soportados simultáneamente.</p>
+                    <div class="input-group">
+                        <input type="text" id="input-query" placeholder="Ej: Python Developer" value="Python Developer">
+                        <input type="text" id="input-location" placeholder="Ubicación" value="Chile">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="check-remote" checked> Remoto
+                        </label>
+                        <button class="btn-primary" onclick="startSearch()">
+                            <i class="fa-solid fa-play"></i> Iniciar Búsqueda
+                        </button>
+                    </div>
+                </div>
+
+                <div class="action-section hidden" id="section-register">
+                    <h2>Registro Masivo en SuccessFactors</h2>
+                    <p>Ingresa las URLs de los portales (separadas por coma) para crear perfiles automáticamente.</p>
+                    <div class="input-group">
+                        <textarea id="input-urls" rows="3" placeholder="https://careers.ibm.com/, https://oportunidades.cencosud.com/"></textarea>
+                        <button class="btn-primary" onclick="startRegister()">
+                            <i class="fa-solid fa-play"></i> Iniciar Registro
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Results & Logs -->
+            <div class="dashboard-grid">
+                <!-- Data Table -->
+                <section class="data-view glass">
+                    <div class="section-header">
+                        <h2>Resultados</h2>
+                        <span class="badge" id="results-count">0</span>
+                    </div>
+                    <div class="table-container">
+                        <table id="results-table">
+                            <thead>
+                                <tr>
+                                    <th>Título</th>
+                                    <th>Empresa</th>
+                                    <th>Ubicación</th>
+                                    <th>Portal</th>
+                                    <th>Match IA</th>
+                                    <th>Acción</th>
+                                </tr>
+                            </thead>
+                            <tbody id="results-body">
+                                <tr>
+                                    <td colspan="6" class="empty-state">No hay resultados aún. Inicia un escaneo.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- Console Logs -->
+                <section class="console-view glass">
+                    <div class="section-header">
+                        <h2>Terminal de Operaciones</h2>
+                        <div class="status-indicator active"></div>
+                    </div>
+                    <div class="console-box" id="console-output">
+                        <div class="log-line system">> Sistema Pathwise inicializado.</div>
+                        <div class="log-line system">> Esperando comandos...</div>
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>

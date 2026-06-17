@@ -15,6 +15,8 @@ DOMAIN_MAP = {
     "trabajando.cl": "TRABAJANDO",
     "indeed.com": "INDEED",
     "indeed.cl": "INDEED",
+    "sonda.com": "SONDA",
+    "ibm.com": "IBM",
 }
 
 async def attempt_auto_login(driver_caller, url: str) -> bool:

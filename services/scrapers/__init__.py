@@ -8,6 +8,7 @@ from services.scrapers.indeed import scan_indeed
 from services.scrapers.trabajando import scan_trabajando
 from services.scrapers.randstad import scan_randstad
 from services.scrapers.bebee import scan_bebee
+from services.scrapers.sonda import scan_sonda
 
 __all__ = [
     "scan_chiletrabajos", "scan_computrabajo",
@@ -15,5 +16,5 @@ __all__ = [
     "scan_laborum", "scan_firstjob",
     "scan_indeed", "scan_trabajando",
     "scan_randstad",
-    "scan_bebee",
+    "scan_bebee", "scan_sonda",
 ]

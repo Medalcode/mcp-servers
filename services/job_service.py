@@ -12,6 +12,27 @@ from services.scrapers import (
 
 logger = logging.getLogger(__name__)
 
+async def mass_register_sf(urls: list[str]) -> dict:
+    from engines.selenium_engine import SeleniumEngine
+    from services.sf_automator import SuccessFactorsAutomator
+    
+    results = {}
+    engine = SeleniumEngine()
+    
+    try:
+        automator = SuccessFactorsAutomator(engine)
+        for url in urls:
+            try:
+                success = await automator.register_account(url)
+                results[url] = "SUCCESS" if success else "FAILED"
+            except Exception as e:
+                logger.error(f"Error registering at {url}: {e}")
+                results[url] = f"ERROR: {e}"
+    finally:
+        engine.close()
+        
+    return results
+
 ALL_SCRAPERS = [
     ("ChileTrabajos", scan_chiletrabajos),
     ("CompuTrabajo", scan_computrabajo),

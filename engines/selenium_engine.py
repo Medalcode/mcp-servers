@@ -137,7 +137,11 @@ class SeleniumEngine(BrowserEngine):
         chromedriver = _detect_chromedriver()
         try:
             if _uc is not None:
-                self._driver = _uc.Chrome(options=opts, user_data_dir=self._temp_dir)
+                self._driver = _uc.Chrome(
+                    options=opts, 
+                    user_data_dir=self._temp_dir,
+                    version_main=149
+                )
             elif chromedriver:
                 service = Service(executable_path=chromedriver)
                 self._driver = webdriver.Chrome(service=service, options=opts)
