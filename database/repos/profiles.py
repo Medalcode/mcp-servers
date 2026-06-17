@@ -44,23 +44,23 @@ def list_profiles(user_id=1):
 
 def create_profile(user_id, name, type="general", is_default=False, title="", summary="", skills=None):
     conn = get_connection()
-    if is_default:
-        conn.execute("UPDATE profiles SET is_default=0 WHERE user_id=?", (user_id,))
-    cur = conn.execute("INSERT INTO profiles (user_id, name, type, is_default) VALUES (?,?,?,?)",
-                       (user_id, name, type, 1 if is_default else 0))
-    profile_id = cur.lastrowid
-    if title or summary:
-        conn.execute(
-            "INSERT INTO personal_info (profile_id, current_title, summary) VALUES (?, ?, ?)",
-            (profile_id, title, summary)
-        )
-    if skills:
-        for skill_name in skills:
+    with conn:
+        if is_default:
+            conn.execute("UPDATE profiles SET is_default=0 WHERE user_id=?", (user_id,))
+        cur = conn.execute("INSERT INTO profiles (user_id, name, type, is_default) VALUES (?,?,?,?)",
+                           (user_id, name, type, 1 if is_default else 0))
+        profile_id = cur.lastrowid
+        if title or summary:
             conn.execute(
-                "INSERT INTO skills (profile_id, name, category) VALUES (?, ?, ?)",
-                (profile_id, skill_name, "")
+                "INSERT INTO personal_info (profile_id, current_title, summary) VALUES (?, ?, ?)",
+                (profile_id, title, summary)
             )
-    conn.commit()
+        if skills:
+            for skill_name in skills:
+                conn.execute(
+                    "INSERT INTO skills (profile_id, name, category) VALUES (?, ?, ?)",
+                    (profile_id, skill_name, "")
+                )
     return {"id": profile_id, "name": name, "type": type, "isDefault": is_default}
 
 def delete_profile(profile_id, user_id=1):
@@ -71,3 +71,49 @@ def delete_profile(profile_id, user_id=1):
     conn.execute("DELETE FROM profiles WHERE id=? AND user_id=?", (profile_id, user_id))
     conn.commit()
     return True
+
+def save_parsed_cv(parsed_data: dict, user_id=1, profile_name="CV Importado"):
+    conn = get_connection()
+    with conn:
+        conn.execute("UPDATE profiles SET is_default=0 WHERE user_id=?", (user_id,))
+        cur = conn.execute("INSERT INTO profiles (user_id, name, type, is_default) VALUES (?, ?, 'general', 1)", (user_id, profile_name))
+        pid = cur.lastrowid
+        
+        pi = parsed_data.get("personalInfo", {})
+        if pi:
+            conn.execute("""
+                INSERT INTO personal_info 
+                (profile_id, first_name, last_name, email, phone, city, country, current_title, summary, linkedin, github)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                pid, pi.get("firstName", ""), pi.get("lastName", ""), pi.get("email", ""), 
+                pi.get("phone", ""), pi.get("city", ""), pi.get("country", ""), 
+                pi.get("currentTitle", ""), pi.get("summary", ""), pi.get("linkedin", ""), pi.get("github", "")
+            ))
+            
+        for i, exp in enumerate(parsed_data.get("experience", [])):
+            conn.execute("""
+                INSERT INTO experience 
+                (profile_id, title, company, location, start_date, end_date, current, description, order_index)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                pid, exp.get("title", ""), exp.get("company", ""), exp.get("location", ""),
+                exp.get("startDate", ""), exp.get("endDate", ""), 1 if exp.get("current") else 0,
+                exp.get("description", ""), i
+            ))
+            
+        for i, edu in enumerate(parsed_data.get("education", [])):
+            conn.execute("""
+                INSERT INTO education
+                (profile_id, degree, school, field_of_study, start_date, end_date, current, order_index)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                pid, edu.get("degree", ""), edu.get("school", ""), edu.get("fieldOfStudy", ""),
+                edu.get("startDate", ""), edu.get("endDate", ""), 1 if edu.get("current") else 0, i
+            ))
+            
+        for skill in parsed_data.get("skills", []):
+            if isinstance(skill, str):
+                conn.execute("INSERT INTO skills (profile_id, name, category) VALUES (?, ?, '')", (pid, skill))
+                
+    return pid

@@ -1,6 +1,9 @@
 import os
 import re
-import xml.etree.ElementTree as ET
+try:
+    import defusedxml.ElementTree as ET
+except ImportError:
+    import xml.etree.ElementTree as ET
 
 from scrapers.base import BaseScraper, ScrapeResult
 
@@ -14,7 +17,7 @@ class SitemapScraper(BaseScraper):
 
             sitemap_url = None
             try:
-                robots_resp = await self._session.get(base + "/robots.txt", follow_redirects=True)
+                robots_resp = await self._session.get(base + "/robots.txt", follow_redirects=False)
                 if robots_resp.status_code == 200:
                     for line in robots_resp.text.splitlines():
                         if line.lower().startswith("sitemap:"):
@@ -26,7 +29,7 @@ class SitemapScraper(BaseScraper):
             if not sitemap_url:
                 sitemap_url = base + "/sitemap.xml"
 
-            resp = await self._session.get(sitemap_url, follow_redirects=True)
+            resp = await self._session.get(sitemap_url, follow_redirects=False)
             resp.raise_for_status()
 
             try:

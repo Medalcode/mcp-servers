@@ -215,7 +215,13 @@ class PlaywrightEngine(BrowserEngine):
                 self._sync_run(self._playwright.stop())
         except Exception:
             pass
+        if self._loop and not self._loop.is_closed():
+            try:
+                self._loop.close()
+            except Exception:
+                pass
         self._page = None
         self._browser = None
         self._playwright = None
         self._available = False
+        self._loop = None

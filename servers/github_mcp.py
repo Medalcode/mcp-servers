@@ -1,6 +1,4 @@
-import os
 from mcp.server.fastmcp import FastMCP
-from dotenv import load_dotenv
 from gh_mcp.client import (
     get_repo, list_issues, get_issue, create_issue, close_issue,
     list_prs, get_pr, merge_pr, list_branches,
@@ -70,10 +68,11 @@ async def commits(repo: str, branch: str = "main", limit: int = 10) -> str:
     return await list_commits(repo, branch, limit)
 
 
+from servers.server_base import run_server
+
+
 def main():
-    env_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env")
-    load_dotenv(env_path)
-    mcp.run(transport="stdio")
+    run_server(mcp)
 
 
 if __name__ == "__main__":

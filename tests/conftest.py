@@ -36,11 +36,9 @@ def _test_db(tmp_path):
     """Provide a fresh temporary database for each test."""
     db_path = str(tmp_path / "test.db")
     import database
-    import database.config
     
-    # Patch DB_PATH in both modules
-    database.config.DB_PATH = db_path
-    database.DB_PATH = db_path
+    os.environ["PATHWISE_DB_PATH"] = db_path
+    os.environ["PATHWISE_ADMIN_PASSWORD"] = "test-secret-123"
     
     # Limpiamos la conexión del thread actual si existe
     if hasattr(database._local, "conn"):
@@ -50,8 +48,6 @@ def _test_db(tmp_path):
             pass
         delattr(database._local, "conn")
         
-    os.environ["PATHWISE_DB_PATH"] = db_path
-    os.environ["PATHWISE_ADMIN_PASSWORD"] = "test-secret-123"
     yield
     
     if hasattr(database._local, "conn"):

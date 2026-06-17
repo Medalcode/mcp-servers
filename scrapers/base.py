@@ -12,9 +12,6 @@ from urllib.parse import urlparse, unquote
 
 import httpx
 from bs4 import BeautifulSoup
-from dotenv import load_dotenv
-
-load_dotenv()
 
 logger = logging.getLogger("scrapemcp.base")
 
@@ -112,7 +109,7 @@ class BaseScraper:
         _validate_url(url)
         await self._rate_limit_wait()
         self._session.headers["User-Agent"] = random.choice(USER_AGENTS)
-        resp = await self._session.get(url, follow_redirects=True)
+        resp = await self._session.get(url, follow_redirects=False)
         resp.raise_for_status()
         soup = BeautifulSoup(resp.content, "html5lib")
         resolved = str(resp.url)

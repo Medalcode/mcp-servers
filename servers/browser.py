@@ -9,7 +9,6 @@ import socket
 import threading
 from urllib.parse import urlparse
 from mcp.server.fastmcp import FastMCP
-from dotenv import load_dotenv
 
 from engines.static import StaticEngine
 from engines.playwright_engine import PlaywrightEngine
@@ -81,10 +80,18 @@ _PRIVATE_BLOCKS = [
 
 _BLOCKED_HOSTNAMES = {"localhost", "127.0.0.1", "::1", "0.0.0.0", "metadata.google.internal", "169.254.169.254"}
 
+# Cache DNS lookups to reduce latency and mitigate some SSRF attacks
+_dns_cache: dict[str, bool] = {}
+_dns_cache_ttl = 300
+
 
 def _is_private_hostname(hostname: str) -> bool:
     if not hostname:
         return False
+    cache_key = hostname.lower()
+    cached = _dns_cache.get(cache_key)
+    if cached is not None:
+        return cached
     try:
         old_timeout = socket.getdefaulttimeout()
         socket.setdefaulttimeout(5)
@@ -97,16 +104,30 @@ def _is_private_hostname(hostname: str) -> bool:
             addr = ipaddress.ip_address(ip_str)
             for block in _PRIVATE_BLOCKS:
                 if addr in block:
+                    _dns_cache[cache_key] = True
                     return True
     except (socket.gaierror, OSError):
         pass
+    _dns_cache[cache_key] = False
     return False
+
+
+def _dns_resolves(hostname: str) -> bool:
+    if not hostname:
+        return False
+    try:
+        socket.getaddrinfo(hostname, None)
+        return True
+    except socket.gaierror:
+        return False
 
 
 def _validate_url(url: str) -> None:
     parsed = urlparse(url)
     if parsed.scheme not in ("http", "https"):
         raise ValueError(f"Scheme '{parsed.scheme}' not allowed (only http/https)")
+    if parsed.username or parsed.password:
+        raise ValueError("URL credentials not allowed (user:password@host)")
     hostname = parsed.hostname or ""
     if hostname.lower() in _BLOCKED_HOSTNAMES:
         raise ValueError(f"Blocked hostname: {hostname}")
@@ -114,6 +135,16 @@ def _validate_url(url: str) -> None:
         raise ValueError(f"Blocked domain: {hostname}")
     if hostname and _is_private_hostname(hostname):
         raise ValueError(f"Blocked private IP range for hostname: {hostname}")
+
+    # Reject URLs with bare IP addresses in private ranges (bypass DNS)
+    try:
+        addr = ipaddress.ip_address(hostname)
+        for block in _PRIVATE_BLOCKS:
+            if addr in block:
+                raise ValueError(f"Blocked private IP: {hostname}")
+    except ValueError:
+        if not _dns_resolves(hostname):
+            raise ValueError(f"Hostname does not resolve: {hostname}")
 
 
 def _validate_final_url(result) -> str | None:
@@ -130,20 +161,33 @@ def _validate_final_url(result) -> str | None:
 
 _BLOCKED_JS_PATTERNS = [
     r"\bfetch\s*\(",
-    r"\bXMLHttpRequest\b",
-    r"\bWebSocket\b",
-    r"\bFileReader\b",
-    r"\bimportScripts\b",
-    r"\bWorker\b",
-    r"\bnavigator\.sendBeacon\b",
+    r"\bxmlhttprequest\b",
+    r"\bwebsocket\b",
+    r"\bfilereader\b",
+    r"\bimportscripts\b",
+    r"\bworker\b",
+    r"\bnavigator\.sendbeacon\b",
     r"\bdocument\.write\b",
     r"\bdocument\.open\b",
+    r"\btop\.",
+    r"\bparent\.",
+    r"\b(alert|confirm|prompt)\s*\(",
 ]
 
 
 def _validate_script(script: str) -> None:
+    # Deny-by-default: only allow simple DOM read/write scripts
+    dangerous = [
+        "eval", "function", "settimeout", "setinterval",
+        "new function", "reflect.construct",
+        "import(", "importscripts",
+    ]
+    script_lower = script.lower()
+    for keyword in dangerous:
+        if keyword in script_lower:
+            raise ValueError(f"Script blocked: contains dangerous API '{keyword}'")
     for pattern in _BLOCKED_JS_PATTERNS:
-        if re.search(pattern, script):
+        if re.search(pattern, script_lower):
             raise ValueError("Script blocked: contains dangerous API")
 
 
@@ -275,20 +319,11 @@ def engine_info() -> str:
     return f"Active engine: {engine.name}"
 
 
+from servers.server_base import run_server
+
+
 def main():
-    logging.basicConfig(
-        stream=sys.stderr,
-        level=logging.INFO,
-        format="%(asctime)s %(levelname)s %(name)s %(message)s",
-        datefmt="%H:%M:%S",
-    )
-    env_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env")
-    load_dotenv(env_path)
-    transport = os.environ.get("MCP_TRANSPORT", "stdio")
-    if transport == "sse":
-        mcp.run(transport="sse", host=os.environ.get("MCP_HOST", "0.0.0.0"), port=int(os.environ.get("MCP_PORT", "8080")))
-    else:
-        mcp.run(transport="stdio")
+    run_server(mcp, use_sse=True, setup_logging=True)
 
 
 if __name__ == "__main__":

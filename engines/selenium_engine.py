@@ -12,10 +12,17 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException, WebDriverException
-
 from engines.base import BrowserEngine, PageResult, LinkInfo, FormInfo, FormField
 
 logger = logging.getLogger(__name__)
+
+_uc = None
+if os.environ.get("BROWSER_STEALTH", "").lower() in ("true", "1", "yes"):
+    try:
+        import undetected_chromedriver as _uc
+        logger.info("undetected-chromedriver loaded (stealth mode)")
+    except Exception as e:
+        logger.warning("BROWSER_STEALTH enabled but undetected-chromedriver unavailable: %s", e)
 
 
 def _detect_chromium_binary() -> str:
@@ -75,20 +82,21 @@ class SeleniumEngine(BrowserEngine):
             logger.info("Connected to remote Selenium at %s", remote_url)
             return
 
-        debug_port = os.environ.get("CHROME_DEBUG_PORT", "9226")
+        debug_port = os.environ.get("CHROME_DEBUG_PORT")
         debug_host = os.environ.get("CHROME_DEBUG_HOST", "127.0.0.1")
-        try:
-            opts = Options()
-            opts.add_experimental_option("debuggerAddress", f"{debug_host}:{debug_port}")
-            chromedriver = _detect_chromedriver()
-            if chromedriver:
-                self._driver = webdriver.Chrome(service=Service(executable_path=chromedriver), options=opts)
-            else:
-                self._driver = webdriver.Chrome(options=opts)
-            logger.info("Connected to external Chrome at %s:%s", debug_host, debug_port)
-            return
-        except Exception as e:
-            logger.warning("Failed to connect to external Chrome: %s. Starting new instance.", e)
+        if debug_port is not None:
+            try:
+                opts = Options()
+                opts.add_experimental_option("debuggerAddress", f"{debug_host}:{debug_port}")
+                chromedriver = _detect_chromedriver()
+                if chromedriver:
+                    self._driver = webdriver.Chrome(service=Service(executable_path=chromedriver), options=opts)
+                else:
+                    self._driver = webdriver.Chrome(options=opts)
+                logger.info("Connected to external Chrome at %s:%s", debug_host, debug_port)
+                return
+            except Exception as e:
+                logger.warning("Failed to connect to external Chrome: %s. Starting new instance.", e)
 
         window_size = os.environ.get("CHROME_WINDOW_SIZE", "1920,1080")
         lang = os.environ.get("CHROME_LANG", "es-ES")
@@ -102,11 +110,23 @@ class SeleniumEngine(BrowserEngine):
         opts.add_argument("--disable-gpu")
         opts.add_argument("--disable-software-rasterizer")
         if os.environ.get("BROWSER_HEADLESS", "true").lower() in ("true", "1", "yes"):
-            opts.add_argument("--headless=new")
+            opts.add_argument("--headless=old")
         opts.add_argument("--remote-debugging-port=0")
         opts.add_argument("--remote-debugging-address=127.0.0.1")
-        self._temp_dir = tempfile.mkdtemp(prefix='chromedev-')
-        opts.add_argument(f"--user-data-dir={self._temp_dir}")
+        opts.add_argument("--disable-blink-features=AutomationControlled")
+        opts.add_argument("--disable-features=ChromeWhatsNewUI")
+        opts.add_argument("--disable-features=TranslateUI")
+        if _uc is None:
+            opts.add_experimental_option("excludeSwitches", ["enable-automation"])
+            opts.add_experimental_option("useAutomationExtension", False)
+        profile_dir = os.environ.get("CHROME_USER_DATA_DIR")
+        if profile_dir:
+            os.makedirs(profile_dir, exist_ok=True)
+            self._temp_dir = profile_dir
+        else:
+            self._temp_dir = tempfile.mkdtemp(prefix='chromedev-')
+        if _uc is None:
+            opts.add_argument(f"--user-data-dir={self._temp_dir}")
         opts.add_argument(f"--window-size={window_size}")
         opts.add_argument(f"--lang={lang}")
         opts.add_argument("--disable-search-engine-choice-screen")
@@ -116,18 +136,22 @@ class SeleniumEngine(BrowserEngine):
         opts.page_load_strategy = "normal"
         chromedriver = _detect_chromedriver()
         try:
-            if chromedriver:
+            if _uc is not None:
+                self._driver = _uc.Chrome(options=opts, user_data_dir=self._temp_dir)
+            elif chromedriver:
                 service = Service(executable_path=chromedriver)
                 self._driver = webdriver.Chrome(service=service, options=opts)
             else:
                 logger.warning("chromedriver not found via auto-detection, using default")
                 self._driver = webdriver.Chrome(options=opts)
+            if _uc is None:
+                self._disable_automation_flags()
             self._driver.set_page_load_timeout(30)
         except WebDriverException as e:
             logger.error("Failed to start Chrome: %s", e)
             raise
 
-    def _scroll_into_view(self, element)->None:
+    def _scroll_into_view(self, element):
         try:
             self._driver.execute_script(
                 "arguments[0].scrollIntoView({block: 'center', behavior: 'instant'});",
@@ -393,6 +417,6 @@ class SeleniumEngine(BrowserEngine):
             logger.exception("close failed")
         finally:
             self._driver = None
-        if self._temp_dir:
+        if self._temp_dir and not os.environ.get("CHROME_USER_DATA_DIR"):
             shutil.rmtree(self._temp_dir, ignore_errors=True)
-            self._temp_dir = None
+        self._temp_dir = None

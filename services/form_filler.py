@@ -148,77 +148,39 @@ def _parse_forms_text(text: str) -> list[FormQuestion]:
     return questions
 
 
-def _extract_textarea_questions(driver, textareas) -> list[FormQuestion]:
-    questions = []
-    for ta in textareas:
-        label = ""
-        try:
-            label = driver.execute_script("""
-                var el = arguments[0];
-                var div = el.closest('div');
-                if (!div) return '';
-                var text = '';
-                var children = div.childNodes;
-                for (var i = 0; i < children.length; i++) {
-                    if (children[i] === el) break;
-                    if (children[i].nodeType === 3 && children[i].textContent.trim()) {
-                        text += children[i].textContent.trim() + ' ';
-                    } else if (children[i].nodeType === 1 && 
-                               !children[i].matches('textarea, input, select, br, hr')) {
-                        text += children[i].textContent.trim() + ' ';
-                    }
-                }
-                return text.trim();
-            """, ta)
-        except Exception as e:
-            logger.warning("Error extracting textarea label: %s", e)
-        name = ""
-        try:
-            name = ta.get_attribute("name") or ""
-        except Exception as e:
-            logger.warning("Error extracting textarea name: %s", e)
-        q = FormQuestion(QuestionType.TEXTAREA, label, name)
-        questions.append(q)
-    return questions
+_ANSWER_STRATEGIES = []
 
 
-def generate_answer(question: FormQuestion, profile: dict) -> str:
-    label_lower = question.label.lower()
+def _build_strategies(profile: dict):
     pi = profile.get("personalInfo", {})
-
     email = pi.get("email", "")
     phone = pi.get("phone", "")
     city = pi.get("city", "")
+    current_title = pi.get("currentTitle", "")
     skills = ", ".join(profile.get("skills", [])[:10])
-    current_title = pi.get("currentTitle") or pi.get("current_title", "")
-    exp_lines = []
-    for e in profile.get("experience", [])[:3]:
-        desc = (e.get("description") or "")[:200]
-        exp_lines.append(f"- {e['title']} en {e['company']}: {desc}")
-    exp_text = "\n".join(exp_lines)
-    
+    salary = profile.get("personalInfo", {}).get("salary_expectation", "")
+
     edu_lines = []
     for e in profile.get("education", []):
         status = "en curso" if e.get("current") else "completado"
         edu_lines.append(f"- {e['degree']} en {e['school']} ({status})")
     edu_text = "\n".join(edu_lines)
 
-    if question.type == QuestionType.EMAIL:
-        return email
-    if question.type == QuestionType.TEL:
-        return phone
+    exp_lines = []
+    for e in profile.get("experience", [])[:3]:
+        desc = (e.get("description") or "")[:200]
+        exp_lines.append(f"- {e['title']} en {e['company']}: {desc}")
+    exp_text = "\n".join(exp_lines)
 
-    salary = profile.get("personalInfo", {}).get("salary_expectation", "")
-
-    patterns = [
+    return [
         (r'(carrera|estudiando|semestre|año|estudios|formación académica|casa de estudios|universidad)',
-         f"{edu_text}" if edu_text else "Formación según perfil."),
+         edu_text or "Formación según perfil."),
         (r'(horas|disponibilidad|práctica|full time|comenzar|inicio|jornada)',
          "Disponibilidad según lo requerido."),
         (r'(teléfono|correo|contacto|número|email)',
          f"{'Teléfono: ' + phone if phone else ''}{' | ' if phone and email else ''}{'Correo: ' + email if email else 'Datos de contacto en el perfil.'}"),
         (r'(experiencia|trayectoria|años)',
-         f"{exp_text}" if exp_text else "Experiencia detallada en el perfil."),
+         exp_text or "Experiencia detallada en el perfil."),
         (r'(motivación|interés|por qué)',
          "Me interesa esta oportunidad para aplicar mis conocimientos y seguir creciendo profesionalmente."),
         (r'(comuna|residencia|vives|vive|domicilio|lugar)',
@@ -226,16 +188,27 @@ def generate_answer(question: FormQuestion, profile: dict) -> str:
         (r'(portfolio|github|linkedin|enlace)',
          f"{'GitHub: ' + pi.get('github', '') if pi.get('github') else ''}{' | ' if pi.get('github') and pi.get('linkedin') else ''}{'LinkedIn: ' + pi.get('linkedin', '') if pi.get('linkedin') else 'Datos en el perfil.'}"),
         (r'(conocimiento|tecnología|stack|técnico)',
-         f"{skills}" if skills else "Según perfil profesional."),
+         skills or "Según perfil profesional."),
         (r'(sueldo|salario|renta|pretensión)',
          salary if salary else os.environ.get("DEFAULT_SALARY", "800000")),
     ]
 
+
+def generate_answer(question: FormQuestion, profile: dict) -> str:
+    pi = profile.get("personalInfo", {})
+    if question.type == QuestionType.EMAIL:
+        return pi.get("email", "")
+    if question.type == QuestionType.TEL:
+        return pi.get("phone", "")
+
+    label_lower = question.label.lower()
+    patterns = _build_strategies(profile)
     for pattern, answer in patterns:
         if re.search(pattern, label_lower):
             return answer
-
-    return f"Sí, cuento con la experiencia y formación requerida. {current_title} con conocimientos en {skills}."
+    pi = profile.get("personalInfo", {})
+    skills = ", ".join(profile.get("skills", [])[:8])
+    return f"Sí, cuento con la experiencia y formación requerida. {pi.get('currentTitle', '')} con conocimientos en {skills}."
 
 
 def generate_radio_answer(question: FormQuestion, profile: dict) -> str:

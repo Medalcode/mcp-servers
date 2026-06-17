@@ -69,7 +69,22 @@ async def ensure_browser() -> asyncio.subprocess.Process:
     async with _browser_proc_lock:
         if _browser_proc is not None and _browser_proc.returncode is None:
             return _browser_proc
-        env = {**os.environ, "BROWSER_ENGINE": "selenium", "CHROME_DEBUG_PORT": "9226"}
+        _SAFE_ENV_KEYS = {
+            "BROWSER_ENGINE", "BROWSER_HEADLESS", "BROWSER_NO_SANDBOX", "BROWSER_STEALTH",
+            "BROWSER_TEXT_MAX", "BROWSER_SCREENSHOT_MAX_BYTES",
+            "CHROME_USER_DATA_DIR", "CHROME_WINDOW_SIZE", "CHROME_LANG",
+            "CHROME_DEBUG_PORT", "CHROME_DEBUG_HOST", "CHROMEDRIVER_PATH",
+            "DISPLAY", "XAUTHORITY",
+            "SELENIUM_REMOTE_URL", "PATH", "HOME", "USER",
+            "LANG", "LC_ALL", "XDG_RUNTIME_DIR", "DBUS_SESSION_BUS_ADDRESS",
+            "PYTHONPATH", "TMPDIR"
+        }
+        env = {k: os.environ[k] for k in _SAFE_ENV_KEYS if k in os.environ}
+        env.update({
+            "BROWSER_ENGINE": "selenium",
+            "BROWSER_NO_SANDBOX": "true",
+            "BROWSER_STEALTH": "true",
+        })
         _browser_proc = await asyncio.create_subprocess_exec(
             sys.executable, "-m", "servers.browser",
             stdin=asyncio.subprocess.PIPE,

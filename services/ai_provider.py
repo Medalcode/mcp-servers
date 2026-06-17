@@ -68,7 +68,7 @@ Responde ÚNICAMENTE con un JSON con esta estructura:
 }}
 Usa null para campos sin datos, array vacío para listas sin datos."""
     try:
-        result = await _call_ai("cv_parse -- " + raw_text[:1000])
+        result = await _call_ai(prompt)
         cleaned = _clean_json(result)
         return json.loads(cleaned)
     except Exception as e:
@@ -112,7 +112,7 @@ Requisitos:
 - NO incluir dirección, fecha, ni firma
 - Genera SOLO el cuerpo de la carta"""
     try:
-        result = await _call_ai("cover_letter -- " + job_title[:50])
+        result = await _call_ai(prompt)
         return _clean_json(result)
     except Exception as e:
         return f"Error generando carta: {e}"
@@ -149,9 +149,43 @@ Responde ÚNICAMENTE con JSON:
   {{"title": str, "description": str, "keySkills": [str], "searchKeywords": [str], "targetRoles": [str]}}
 ]}}"""
     try:
-        result = await _call_ai("personas -- " + (pi.get('currentTitle', '') or 'profile'))
+        result = await _call_ai(prompt)
         cleaned = _clean_json(result)
         data = json.loads(cleaned)
         return data.get("profiles", [])
     except Exception as e:
         return [{"error": str(e)}]
+
+async def answer_form_question(question_label: str, question_type: str, profile: dict) -> str:
+    pi = profile.get("personalInfo", {})
+    exp_text = "\n".join(f"- {e['title']} en {e['company']}" for e in profile.get("experience", [])[:3])
+    edu_text = "\n".join(f"- {e['degree']} en {e['school']}" for e in profile.get("education", [])[:2])
+    skills_text = ", ".join(profile.get("skills", [])[:15])
+    
+    prompt = f"""Eres un asistente que llena formularios de postulación a empleos. 
+Responde la siguiente pregunta del formulario basándote ESTRICTAMENTE en los datos del perfil proporcionado.
+Si la respuesta es Sí o No, responde solo eso. Si es un número (como años de experiencia), responde solo el número. 
+Se extremadamente breve y directo. No agregues saludos ni explicaciones.
+
+Pregunta / Etiqueta del campo: "{question_label}"
+Tipo de campo esperado: "{question_type}"
+
+Datos del perfil:
+Nombre: {pi.get('firstName', '')} {pi.get('lastName', '')}
+Teléfono: {pi.get('phone', '')}
+Email: {pi.get('email', '')}
+Ubicación: {pi.get('city', '')}, {pi.get('country', '')}
+Expectativa Salarial: {pi.get('salary_expectation', '800000')}
+Educación: {edu_text}
+Experiencia reciente: {exp_text}
+Habilidades: {skills_text}
+
+Tu respuesta (directa para escribir en el formulario):"""
+    try:
+        result = await _call_ai(prompt)
+        # Clean any quotes the AI might add
+        cleaned = result.strip().strip('"').strip("'")
+        return cleaned
+    except Exception as e:
+        logger.error(f"Error answering form question: {e}")
+        return ""

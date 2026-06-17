@@ -4,7 +4,7 @@ import os
 import secrets
 import sqlite3
 import threading
-from database.config import DB_PATH
+from database.config import get_db_path
 
 logger = logging.getLogger(__name__)
 
@@ -13,7 +13,7 @@ _local = threading.local()
 
 def get_connection() -> sqlite3.Connection:
     if not hasattr(_local, "conn"):
-        _local.conn = sqlite3.connect(DB_PATH, timeout=30.0)
+        _local.conn = sqlite3.connect(get_db_path(), timeout=30.0)
         _local.conn.row_factory = sqlite3.Row
         _local.conn.execute("PRAGMA journal_mode=WAL")
         _local.conn.execute("PRAGMA foreign_keys=ON")

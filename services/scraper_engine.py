@@ -42,17 +42,22 @@ DEDICATED_SCRAPERS = [
     ("BeBee", scan_bebee),
 ]
 
-SCRAPEMCP_URL = os.environ.get("SCRAPEMCP_URL", "")
-SCRAPEMCP_ENABLED = os.environ.get("SCRAPEMCP_ENABLED", "").lower() in ("1", "true", "yes")
+def _get_scrapemcp_url() -> str:
+    return os.environ.get("SCRAPEMCP_URL", "")
+
+
+def _is_scrapemcp_enabled() -> bool:
+    return os.environ.get("SCRAPEMCP_ENABLED", "").lower() in ("1", "true", "yes")
 
 
 async def _call_scrapemcp(query: str, location: str = "Chile") -> ScraperResult:
-    if not SCRAPEMCP_ENABLED or not SCRAPEMCP_URL:
+    if not _is_scrapemcp_enabled() or not _get_scrapemcp_url():
         return ScraperResult(source="ScrapeMCP", success=False, error="ScrapeMCP not configured")
     start = time.monotonic()
+    url = _get_scrapemcp_url()
     try:
         async with httpx.AsyncClient(timeout=10) as client:
-            resp = await client.post(f"{SCRAPEMCP_URL}/api/scrape", json={
+            resp = await client.post(f"{url}/api/scrape", json={
                 "url": f"https://www.google.com/search?q={query}+trabajo+{location}",
             })
             if resp.status_code == 200:

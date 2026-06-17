@@ -1,6 +1,4 @@
-import os
 from mcp.server.fastmcp import FastMCP
-from dotenv import load_dotenv
 from memory_engine.store import (
     remember, recall, search, forget, list_by_category,
     save_context, get_context, stats, get_categories,
@@ -58,10 +56,11 @@ async def get_session_context(session_id: str, limit: int = 10) -> str:
     return get_context(session_id, limit)
 
 
+from servers.server_base import run_server
+
+
 def main():
-    env_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env")
-    load_dotenv(env_path)
-    mcp.run(transport="stdio")
+    run_server(mcp)
 
 
 if __name__ == "__main__":
