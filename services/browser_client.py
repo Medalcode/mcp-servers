@@ -8,11 +8,11 @@ import time
 
 logger = logging.getLogger(__name__)
 
-MCP_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+MCP_DIR: str = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-_browser_proc: asyncio.subprocess.Process = None
+_browser_proc: asyncio.subprocess.Process | None = None
 _browser_proc_lock = asyncio.Lock()
-_next_req_id = 1
+_next_req_id: int = 1
 _req_id_lock = asyncio.Lock()
 
 
@@ -24,7 +24,7 @@ async def _next_id() -> int:
         return cur
 
 
-async def _consume_stderr(proc):
+async def _consume_stderr(proc: asyncio.subprocess.Process) -> None:
     try:
         while True:
             line = await proc.stderr.readline()
@@ -33,11 +33,11 @@ async def _consume_stderr(proc):
             text = line.decode().rstrip()
             if text:
                 logger.debug("BrowserMCP stderr: %s", text)
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug("BrowserMCP stderr consumer ended: %s", e)
 
 
-async def _read_json_response(proc, timeout=60):
+async def _read_json_response(proc: asyncio.subprocess.Process, timeout: int = 60) -> dict:
     buf = ""
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
@@ -64,7 +64,7 @@ async def _read_json_response(proc, timeout=60):
     raise TimeoutError("No valid JSON response from browser")
 
 
-async def ensure_browser():
+async def ensure_browser() -> asyncio.subprocess.Process:
     global _browser_proc
     async with _browser_proc_lock:
         if _browser_proc is not None and _browser_proc.returncode is None:
@@ -107,7 +107,7 @@ async def ensure_browser():
     return _browser_proc
 
 
-async def call_tool(tool: str, args: dict = None, max_retries: int = 2) -> str:
+async def call_tool(tool: str, args: dict | None = None, max_retries: int = 2) -> str:
     last_error = ""
     for attempt in range(max_retries + 1):
         try:
@@ -140,7 +140,7 @@ async def call_tool(tool: str, args: dict = None, max_retries: int = 2) -> str:
     return f"BrowserMCP failed after {max_retries + 1} attempts: {last_error}"
 
 
-async def reset_browser():
+async def reset_browser() -> None:
     global _browser_proc
     async with _browser_proc_lock:
         if _browser_proc and _browser_proc.returncode is None:
@@ -158,5 +158,5 @@ async def reset_browser():
         _browser_proc = None
 
 
-async def stop_browser():
+async def stop_browser() -> None:
     await reset_browser()

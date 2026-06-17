@@ -1,11 +1,13 @@
 import os
 import sys
 import logging
+from typing import Any
 
 from dotenv import load_dotenv
+from mcp.server.fastmcp import FastMCP
 
 
-def run_server(mcp, *, use_sse=False, setup_logging=False, env_path=None):
+def run_server(mcp: FastMCP, *, use_sse: bool = False, setup_logging: bool = False, env_path: str | None = None) -> None:
     if setup_logging:
         logging.basicConfig(
             stream=sys.stderr,

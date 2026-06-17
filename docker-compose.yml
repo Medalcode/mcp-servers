@@ -76,7 +76,7 @@ services:
 
   github:
     build: .
-    command: python github_server.py
+    command: python -m servers.github_mcp
     ports:
       - "8007:8007"
     environment:

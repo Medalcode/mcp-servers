@@ -1,6 +1,9 @@
 import json
+import logging
 import os
 from dataclasses import dataclass, asdict
+
+logger = logging.getLogger(__name__)
 
 @dataclass
 class ModelInfo:
@@ -141,8 +144,8 @@ def load_config():
             with open(tmp_path, "w", encoding="utf-8") as f:
                 json.dump(default_config, f, indent=4, ensure_ascii=False)
             os.replace(tmp_path, CONFIG_PATH)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning("Could not write default config: %s", e)
         return _DEFAULT_MODELS, _DEFAULT_TASK_ROUTING, _DEFAULT_TASK_KEYWORDS
 
     try:
@@ -156,7 +159,8 @@ def load_config():
         task_routing = data.get("task_routing", _DEFAULT_TASK_ROUTING)
         task_keywords = data.get("task_keywords", _DEFAULT_TASK_KEYWORDS)
         return models, task_routing, task_keywords
-    except Exception:
+    except Exception as e:
+        logger.warning("Could not load config, using defaults: %s", e)
         return _DEFAULT_MODELS, _DEFAULT_TASK_ROUTING, _DEFAULT_TASK_KEYWORDS
 
 MODELS, TASK_ROUTING, TASK_KEYWORDS = load_config()

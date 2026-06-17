@@ -1,3 +1,4 @@
+import logging
 import os
 import re
 try:
@@ -6,6 +7,8 @@ except ImportError:
     import xml.etree.ElementTree as ET
 
 from scrapers.base import BaseScraper, ScrapeResult
+
+logger = logging.getLogger(__name__)
 
 _SITEMAP_URL_LIMIT = int(os.getenv("SITEMAP_URL_LIMIT", "50"))
 
@@ -23,8 +26,8 @@ class SitemapScraper(BaseScraper):
                         if line.lower().startswith("sitemap:"):
                             sitemap_url = line.split(":", 1)[1].strip()
                             break
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("Could not fetch robots.txt: %s", e)
 
             if not sitemap_url:
                 sitemap_url = base + "/sitemap.xml"

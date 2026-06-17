@@ -1,10 +1,31 @@
-import os
+import asyncio
+import base64
 import json
+import os
 from typing import Any
 
 import httpx
 
 GH_API = "https://api.github.com"
+
+_client_lock = asyncio.Lock()
+_shared_client: httpx.AsyncClient | None = None
+
+
+async def _get_client() -> httpx.AsyncClient:
+    global _shared_client
+    if _shared_client is None:
+        async with _client_lock:
+            if _shared_client is None:
+                _shared_client = httpx.AsyncClient(timeout=30)
+    return _shared_client
+
+
+async def _close_client():
+    global _shared_client
+    if _shared_client is not None:
+        await _shared_client.aclose()
+        _shared_client = None
 
 
 def _get_headers() -> dict:
@@ -22,31 +43,31 @@ def _check_token():
 
 
 async def _get(path: str, params: dict | None = None) -> dict:
-    async with httpx.AsyncClient() as c:
-        r = await c.get(f"{GH_API}{path}", headers=_get_headers(), params=params, timeout=30)
-        r.raise_for_status()
-        return r.json()
+    c = await _get_client()
+    r = await c.get(f"{GH_API}{path}", headers=_get_headers(), params=params)
+    r.raise_for_status()
+    return r.json()
 
 
 async def _post(path: str, data: dict) -> dict:
-    async with httpx.AsyncClient() as c:
-        r = await c.post(f"{GH_API}{path}", headers=_get_headers(), json=data, timeout=30)
-        r.raise_for_status()
-        return r.json()
+    c = await _get_client()
+    r = await c.post(f"{GH_API}{path}", headers=_get_headers(), json=data)
+    r.raise_for_status()
+    return r.json()
 
 
 async def _patch(path: str, data: dict) -> dict:
-    async with httpx.AsyncClient() as c:
-        r = await c.patch(f"{GH_API}{path}", headers=_get_headers(), json=data, timeout=30)
-        r.raise_for_status()
-        return r.json()
+    c = await _get_client()
+    r = await c.patch(f"{GH_API}{path}", headers=_get_headers(), json=data)
+    r.raise_for_status()
+    return r.json()
 
 
 async def _put(path: str, data: dict | None = None) -> dict:
-    async with httpx.AsyncClient() as c:
-        r = await c.put(f"{GH_API}{path}", headers=_get_headers(), json=data, timeout=30)
-        r.raise_for_status()
-        return r.json()
+    c = await _get_client()
+    r = await c.put(f"{GH_API}{path}", headers=_get_headers(), json=data)
+    r.raise_for_status()
+    return r.json()
 
 
 async def get_repo(repo: str) -> str:
@@ -232,6 +253,37 @@ async def trigger_workflow(repo: str, workflow_name: str, ref: str = "main", inp
         return f"Triggered workflow '{wf['name']}' on {ref}"
     except Exception as e:
         return f"Error triggering workflow: {e}"
+
+
+async def search_repositories(query: str, limit: int = 10) -> str:
+    if not _check_token():
+        return "Error: GITHUB_TOKEN not configured"
+    try:
+        data = await _get("/search/repositories", {"q": query, "per_page": min(limit, 200)})
+        items = data.get("items", [])
+        if not items:
+            return f"No repositories found matching '{query}'"
+        lines = [f"# Search results for '{query}'", ""]
+        for r in items:
+            desc = r.get("description", "") or ""
+            lines.append(f"- {r['full_name']} ⭐ {r['stargazers_count']} — {desc[:80]}")
+        return "\n".join(lines)
+    except Exception as e:
+        return f"Error searching repositories: {e}"
+
+
+async def get_file_content(repo: str, path: str, ref: str = "main") -> str:
+    if not _check_token():
+        return "Error: GITHUB_TOKEN not configured"
+    try:
+        data = await _get(f"/repos/{repo}/contents/{path.lstrip('/')}", {"ref": ref})
+        if isinstance(data, list):
+            return "\n".join(item["name"] for item in data)
+        content = data.get("content", "")
+        decoded = base64.b64decode(content).decode("utf-8", errors="replace")
+        return decoded
+    except Exception as e:
+        return f"Error fetching file content: {e}"
 
 
 async def list_commits(repo: str, branch: str = "main", limit: int = 10) -> str:

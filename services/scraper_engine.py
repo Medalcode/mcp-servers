@@ -13,6 +13,9 @@ from services.scrapers import (
     scan_laborum, scan_firstjob,
     scan_indeed, scan_trabajando,
     scan_randstad, scan_bebee, scan_sonda,
+    scan_bhp, scan_codelco,
+    scan_freeport, scan_teck,
+    scan_lundin, scan_glencore,
 )
 
 logger = logging.getLogger(__name__)
@@ -41,6 +44,12 @@ DEDICATED_SCRAPERS = [
     ("Randstad", scan_randstad),
     ("BeBee", scan_bebee),
     ("Sonda", scan_sonda),
+    ("BHP", scan_bhp),
+    ("Codelco", scan_codelco),
+    ("Freeport", scan_freeport),
+    ("Teck", scan_teck),
+    ("Lundin", scan_lundin),
+    ("Glencore", scan_glencore),
 ]
 
 def _get_scrapemcp_url() -> str:

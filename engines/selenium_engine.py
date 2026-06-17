@@ -173,9 +173,8 @@ class SeleniumEngine(BrowserEngine):
                 "arguments[0].scrollIntoView({block: 'center', behavior: 'instant'});",
                 element
             )
-            time.sleep(0.2)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("scroll_into_view failed: %s", e)
 
     def _wait_for_page_load(self, timeout=10):
         try:
@@ -282,15 +281,15 @@ class SeleniumEngine(BrowserEngine):
                                 }
                                 return '';
                             """, inp)
-                        except Exception:
-                            pass
+                        except Exception as e:
+                            logger.debug("label JS fallback failed: %s", e)
                     if not label:
                         try:
                             parent = inp.find_element(By.XPATH, "..")
                             if parent.tag_name == "label":
                                 label = parent.text.strip()
-                        except Exception:
-                            pass
+                        except Exception as e:
+                            logger.debug("parent label fallback failed: %s", e)
                     if not label and placeholder:
                         label = placeholder
                     if not label and aria_label:
@@ -302,8 +301,8 @@ class SeleniumEngine(BrowserEngine):
                     if tag == "select":
                         try:
                             options = [opt.text.strip() for opt in inp.find_elements(By.TAG_NAME, "option") if opt.text.strip()]
-                        except Exception:
-                            pass
+                        except Exception as e:
+                            logger.debug("select options extraction failed: %s", e)
                     fields.append(FormField(tag=tag, name=name, type=type_,
                                             label=label, required=required, options=options))
                 forms.append(FormInfo(action=action, method=method, fields=fields))
@@ -329,7 +328,8 @@ class SeleniumEngine(BrowserEngine):
             self._scroll_into_view(el)
             try:
                 el.click()
-            except Exception:
+            except Exception as e:
+                logger.debug("click() failed, using JS fallback: %s", e)
                 self._driver.execute_script("arguments[0].click();", el)
             self._wait_for_page_load(5)
             return f"Clicked element matching '{selector}'"

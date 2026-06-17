@@ -7,6 +7,7 @@ import base64
 import re
 import socket
 import threading
+import time
 from urllib.parse import urlparse
 from mcp.server.fastmcp import FastMCP
 
@@ -81,8 +82,22 @@ _PRIVATE_BLOCKS = [
 _BLOCKED_HOSTNAMES = {"localhost", "127.0.0.1", "::1", "0.0.0.0", "metadata.google.internal", "169.254.169.254"}
 
 # Cache DNS lookups to reduce latency and mitigate some SSRF attacks
-_dns_cache: dict[str, bool] = {}
+_dns_cache: dict[str, tuple[bool, float]] = {}
 _dns_cache_ttl = 300
+_dns_cache_max = 500
+
+
+def _dns_cache_cleanup():
+    now = time.monotonic()
+    stale = [k for k, (_, ts) in _dns_cache.items() if now - ts > _dns_cache_ttl]
+    for k in stale:
+        del _dns_cache[k]
+
+
+def _dns_cache_set(key: str, value: bool):
+    if len(_dns_cache) >= _dns_cache_max:
+        _dns_cache_cleanup()
+    _dns_cache[key] = (value, time.monotonic())
 
 
 def _is_private_hostname(hostname: str) -> bool:
@@ -91,7 +106,9 @@ def _is_private_hostname(hostname: str) -> bool:
     cache_key = hostname.lower()
     cached = _dns_cache.get(cache_key)
     if cached is not None:
-        return cached
+        value, ts = cached
+        if time.monotonic() - ts <= _dns_cache_ttl:
+            return value
     try:
         old_timeout = socket.getdefaulttimeout()
         socket.setdefaulttimeout(5)
@@ -104,11 +121,11 @@ def _is_private_hostname(hostname: str) -> bool:
             addr = ipaddress.ip_address(ip_str)
             for block in _PRIVATE_BLOCKS:
                 if addr in block:
-                    _dns_cache[cache_key] = True
+                    _dns_cache_set(cache_key, True)
                     return True
     except (socket.gaierror, OSError):
         pass
-    _dns_cache[cache_key] = False
+    _dns_cache_set(cache_key, False)
     return False
 
 

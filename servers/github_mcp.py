@@ -3,6 +3,7 @@ from gh_mcp.client import (
     get_repo, list_issues, get_issue, create_issue, close_issue,
     list_prs, get_pr, merge_pr, list_branches,
     list_workflows, trigger_workflow, list_commits,
+    search_repositories, get_file_content,
 )
 
 mcp = FastMCP("GitHubMCP")
@@ -68,11 +69,21 @@ async def commits(repo: str, branch: str = "main", limit: int = 10) -> str:
     return await list_commits(repo, branch, limit)
 
 
+@mcp.tool()
+async def search_github_repositories(query: str, limit: int = 10) -> str:
+    return await search_repositories(query, limit)
+
+
+@mcp.tool()
+async def github_get_file_content(repo: str, path: str, ref: str = "main") -> str:
+    return await get_file_content(repo, path, ref)
+
+
 from servers.server_base import run_server
 
 
 def main():
-    run_server(mcp)
+    run_server(mcp, use_sse=True)
 
 
 if __name__ == "__main__":

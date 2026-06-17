@@ -73,7 +73,6 @@ async def _should_apply(page_text: str, profile: dict) -> tuple[bool, str]:
     try:
         result = await _call_ai(prompt[:3000])
         cleaned = _clean_json(result)
-        import json
         parsed = json.loads(cleaned)
         return parsed.get("apply", True), parsed.get("reason", "Sin evaluación")
     except Exception as e:
@@ -236,10 +235,16 @@ async def _batch_apply_one(url: str, profile: dict) -> dict:
     result["title"] = title
 
     try:
-        page = await _call_browser_tool("navigate", {"url": url})
+        page = await asyncio.wait_for(
+            _call_browser_tool("navigate", {"url": url}),
+            timeout=45
+        )
         if not page or "Error" in page:
             result["error"] = "Failed to navigate"
             return result
+    except asyncio.TimeoutError:
+        result["error"] = "Navigation timeout"
+        return result
     except Exception as e:
         result["error"] = f"Navigation error: {e}"
         return result

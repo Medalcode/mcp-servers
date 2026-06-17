@@ -1,10 +1,13 @@
 # NOTE: Playwright is unavailable on Ubuntu 26.04. Use Selenium engine instead (BROWSER_ENGINE=selenium).
 
 import asyncio
+import logging
 import re
 from urllib.parse import urlparse
 
 from engines.base import BrowserEngine, PageResult, LinkInfo, FormInfo, FormField
+
+logger = logging.getLogger(__name__)
 
 
 class PlaywrightEngine(BrowserEngine):
@@ -208,18 +211,18 @@ class PlaywrightEngine(BrowserEngine):
         try:
             if self._browser:
                 self._sync_run(self._browser.close())
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("playwright browser close failed: %s", e)
         try:
             if self._playwright:
                 self._sync_run(self._playwright.stop())
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("playwright stop failed: %s", e)
         if self._loop and not self._loop.is_closed():
             try:
                 self._loop.close()
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("loop close failed: %s", e)
         self._page = None
         self._browser = None
         self._playwright = None
