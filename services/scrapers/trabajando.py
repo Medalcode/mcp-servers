@@ -12,7 +12,7 @@ USER_AGENTS = [
 ]
 
 
-async def scan_trabajando(query: str, location: str = "Chile") -> list:
+async def scan_trabajando(query: str, location: str = "Chile", filters: dict = None) -> list:
     params = {"q": query, "l": location}
     url = f"https://www.trabajando.com/cl/ofertas-de-trabajo?{urllib.parse.urlencode(params)}"
     headers = {"User-Agent": random.choice(USER_AGENTS), "Accept": "text/html"}

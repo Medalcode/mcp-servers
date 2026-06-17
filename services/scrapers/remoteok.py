@@ -11,7 +11,7 @@ USER_AGENTS = [
 ]
 
 
-async def scan_remoteok(query: str, location: str = "") -> list:
+async def scan_remoteok(query: str, location: str = "", filters: dict = None) -> list:
     url = f"https://remoteok.com/remote-{query.replace(' ', '-')}-jobs"
     headers = {"User-Agent": random.choice(USER_AGENTS), "Accept": "text/html"}
 

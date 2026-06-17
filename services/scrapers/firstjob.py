@@ -30,7 +30,7 @@ def _map_area(query: str) -> str | None:
     return None
 
 
-async def scan_firstjob(query: str, location: str = "Chile") -> list:
+async def scan_firstjob(query: str, location: str = "Chile", filters: dict = None) -> list:
     area = _map_area(query)
     params = {}
     if area:

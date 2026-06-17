@@ -180,9 +180,10 @@ mcp-servers/
 
 ## Recent Improvements
 
-### 2026-06-17 — Web UI Dashboard & Profile Sync Pre-Vuelo
+### 2026-06-17 — Web UI Dashboard, Profile Sync Pre-Vuelo & Filtros Avanzados
 - **Pathwise Dashboard**: Creación de una Interfaz Gráfica interactiva (`frontend/`, `api_server.py`) con diseño Glassmorphism oscuro. Permite orquestar todo el ecosistema (búsqueda, registro, logs en vivo) sin tocar la terminal.
 - **Sincronización Pre-Vuelo (Profile Sync)**: El bot ahora intercepta las postulaciones para navegar obligatoriamente a los ajustes del perfil. Inyecta la experiencia y el resumen del CV maestro y cancela el flujo si detecta fallos, protegiendo la reputación del postulante.
+- **Filtros Nativos Avanzados**: Incorporados filtros de Búsqueda (Ubicación, Rol, Modalidad, Fecha) que inyectan parámetros URL nativos cuando es soportado (CompuTrabajo) o limpian los resultados con Post-Filtering algorítmico cuando el portal original ignora los parámetros (Trabajando, FirstJob).
 - **Intercepción IMAP**: Integración directa con Gmail (`email_reader.py`) que lee códigos PIN en tiempo real para saltarse los bloqueos de registro de SuccessFactors.
 
 ### 2026-06-17 — Cloudflare Bypass, Auto-Login & Rellenado de Formularios

@@ -31,6 +31,7 @@ class SearchRequest(BaseModel):
     query: str
     location: str = "Chile"
     remote_only: bool = False
+    filters: dict = None
 
 class RegisterRequest(BaseModel):
     urls: list[str]

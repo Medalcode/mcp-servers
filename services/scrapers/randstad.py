@@ -49,7 +49,7 @@ def _extract_route_data(html: str) -> dict | None:
         return None
 
 
-async def scan_randstad(query: str, location: str = "") -> list:
+async def scan_randstad(query: str, location: str = "", filters: dict = None) -> list:
     slug = query.lower().replace(" ", "-")
     search_url = f"https://www.randstad.cl/trabajos/q-{urllib.parse.quote(slug)}/"
     headers = {"User-Agent": random.choice(USER_AGENTS), "Accept": "text/html"}

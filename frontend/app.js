@@ -52,10 +52,19 @@ setInterval(fetchMetrics, 2000);
 fetchMetrics();
 
 // Actions
-async function startSearch() {
-    const query = document.getElementById('input-query').value;
-    const location = document.getElementById('input-location').value;
-    const remote_only = document.getElementById('check-remote').checked;
+async function startScan() {
+    const query = document.getElementById('search-query').value || 'Desarrollador';
+    const location = document.getElementById('search-location').value || 'Chile';
+    const filterDate = document.getElementById('filter-date').value;
+    const filterModality = document.getElementById('filter-modality').value;
+    
+    // Convert to remote_only boolean for backwards compatibility with the old checkbox
+    const remote_only = filterModality === 'remote';
+    
+    const filters = {
+        date: filterDate !== 'any' ? filterDate : null,
+        modality: filterModality !== 'any' ? filterModality : null
+    };
     
     logToConsole(`Iniciando escaneo para: ${query} en ${location}...`, 'info');
     document.getElementById('results-body').innerHTML = `<tr><td colspan="6" style="text-align:center;">Buscando...</td></tr>`;
@@ -63,8 +72,8 @@ async function startSearch() {
     try {
         const res = await fetch('/api/search', {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ query, location, remote_only })
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ query, location, remote_only, filters })
         });
         
         const json = await res.json();

@@ -25,7 +25,7 @@ def _parse_location(location_name: str) -> tuple[str, str]:
     return city, region
 
 
-async def scan_bebee(query: str, location: str = "") -> list:
+async def scan_bebee(query: str, location: str = "", filters: dict = None) -> list:
     params = {"q": query, "country": "CL", "limit": 50}
     search_url = f"{API_URL}?{urllib.parse.urlencode(params)}"
     headers = {"User-Agent": random.choice(USER_AGENTS), "Accept": "application/json"}

@@ -13,7 +13,7 @@ USER_AGENTS = [
 ]
 
 
-async def scan_chiletrabajos(query: str, location: str = "") -> list:
+async def scan_chiletrabajos(query: str, location: str = "", filters: dict = None) -> list:
     params = {"2": query, "filterSearch": "Buscar"}
     if location:
         params["9"] = location

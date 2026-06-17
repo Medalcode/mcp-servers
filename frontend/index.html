@@ -58,13 +58,36 @@
                 <div class="action-section" id="section-search">
                     <h2>Escáner de Empleos</h2>
                     <p>Busca oportunidades en todos los portales soportados simultáneamente.</p>
-                    <div class="input-group">
-                        <input type="text" id="input-query" placeholder="Ej: Python Developer" value="Python Developer">
-                        <input type="text" id="input-location" placeholder="Ubicación" value="Chile">
-                        <label class="checkbox-label">
-                            <input type="checkbox" id="check-remote" checked> Remoto
-                        </label>
-                        <button class="btn-primary" onclick="startSearch()">
+                    <div class="form-row" style="display: flex; gap: 1rem; margin-top: 1rem; flex-wrap: wrap;">
+                        <div class="form-group" style="flex: 2; min-width: 200px;">
+                            <label>Rol / Cargo</label>
+                            <input type="text" id="search-query" placeholder="Ej: Python Developer" value="Python Developer" style="width: 100%;">
+                        </div>
+                        <div class="form-group" style="flex: 1; min-width: 150px;">
+                            <label>Ubicación</label>
+                            <input type="text" id="search-location" placeholder="Ubicación" value="Chile" style="width: 100%;">
+                        </div>
+                        <div class="form-group" style="flex: 1; min-width: 150px;">
+                            <label>Fecha</label>
+                            <select id="filter-date" style="width: 100%; padding: 0.8rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.2); color: #fff;">
+                                <option value="any">Cualquier fecha</option>
+                                <option value="today">Últimas 24 horas</option>
+                                <option value="week">Última semana</option>
+                                <option value="month">Último mes</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="flex: 1; min-width: 150px;">
+                            <label>Modalidad</label>
+                            <select id="filter-modality" style="width: 100%; padding: 0.8rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.2); color: #fff;">
+                                <option value="any">Cualquiera</option>
+                                <option value="remote">Remoto</option>
+                                <option value="hybrid">Híbrido</option>
+                                <option value="onsite">Presencial</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div style="margin-top: 1rem;">
+                        <button class="btn-primary" onclick="startScan()">
                             <i class="fa-solid fa-play"></i> Iniciar Búsqueda
                         </button>
                     </div>

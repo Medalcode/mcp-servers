@@ -91,7 +91,7 @@ def _parse_job(item: dict) -> dict:
     }
 
 
-async def scan_laborum(query: str, location: str = "") -> list:
+async def scan_laborum(query: str, location: str = "", filters: dict = None) -> list:
     async with httpx.AsyncClient(follow_redirects=True, timeout=30) as client:
         client.headers.update({"User-Agent": random.choice(USER_AGENTS)})
 

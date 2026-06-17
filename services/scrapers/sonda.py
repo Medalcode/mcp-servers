@@ -11,7 +11,7 @@ USER_AGENTS = [
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36",
 ]
 
-async def scan_sonda(query: str, location: str = "Chile") -> list:
+async def scan_sonda(query: str, location: str = "Chile", filters: dict = None) -> list:
     """Scrape job postings from SONDA Careers (SAP SuccessFactors)."""
     params = {"q": query, "locationsearch": location}
     url = f"https://carrera.sonda.com/search/?{urllib.parse.urlencode(params)}"

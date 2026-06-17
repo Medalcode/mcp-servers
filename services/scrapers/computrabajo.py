@@ -12,12 +12,35 @@ USER_AGENTS = [
 ]
 
 
-async def scan_computrabajo(query: str, location: str = "") -> list:
+async def scan_computrabajo(query: str, location: str = "", filters: dict = None) -> list:
     norm_q = query.lower().strip().replace(" ", "-")
-    search_url = f"https://cl.computrabajo.com/trabajo-de-{norm_q}"
-    if location and location.lower() != "remoto":
+    
+    # Process modality
+    modality_path = ""
+    is_remote = False
+    if filters and filters.get('modality') == 'remote':
+        modality_path = "-remoto"
+        is_remote = True
+        
+    search_url = f"https://cl.computrabajo.com/trabajo-de-{norm_q}{modality_path}"
+    
+    if location and location.lower() != "remoto" and not is_remote:
         norm_loc = location.lower().strip().replace(" ", "-")
         search_url += f"-en-{norm_loc}"
+
+    # Process date filter
+    params = []
+    if filters and filters.get('date'):
+        d = filters.get('date')
+        if d == 'today':
+            params.append("pubdate=1")
+        elif d == 'week':
+            params.append("pubdate=7")
+        elif d == 'month':
+            params.append("pubdate=30")
+            
+    if params:
+        search_url += "?" + "&".join(params)
 
     headers = {
         "User-Agent": random.choice(USER_AGENTS),

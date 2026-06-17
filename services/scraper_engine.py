@@ -86,14 +86,14 @@ async def _call_scrapemcp(query: str, location: str = "Chile") -> ScraperResult:
     )
 
 
-async def _run_scraper_with_retry(name: str, scraper_fn, query: str, location: str) -> ScraperResult:
+async def _run_scraper_with_retry(name: str, scraper_fn, query: str, location: str, filters: dict = None) -> ScraperResult:
     start = time.monotonic()
     max_retries = 2
     base_delay = 1.0
     
     for attempt in range(max_retries + 1):
         try:
-            jobs = await scraper_fn(query, location)
+            jobs = await scraper_fn(query, location, filters=filters)
             if jobs:
                 return ScraperResult(
                     source=name,
@@ -133,9 +133,9 @@ async def _run_scraper_with_retry(name: str, scraper_fn, query: str, location: s
 
 
 async def search_all(query: str, location: str = "Chile",
-                     remote_only: bool = False, use_scrapemcp_fallback: bool = True) -> list:
+                     remote_only: bool = False, use_scrapemcp_fallback: bool = True, filters: dict = None) -> list:
     tasks = [
-        _run_scraper_with_retry(name, fn, query, location)
+        _run_scraper_with_retry(name, fn, query, location, filters)
         for name, fn in DEDICATED_SCRAPERS
     ]
     
@@ -166,7 +166,21 @@ async def search_all(query: str, location: str = "Chile",
         if r.success:
             for j in r.jobs:
                 j["_scraperSource"] = r.source
-            all_jobs.extend(r.jobs)
+                
+                # Post-filtering de ubicación muy básico para arreglar portales que ignoran el parámetro
+                if location and location.lower() not in ["chile", "remoto", ""]:
+                    job_loc = j.get("location", "").lower()
+                    query_loc = location.lower()
+                    
+                    # Si el trabajo dice "chile" a secas, lo dejamos pasar asumiendo que puede ser nacional
+                    if query_loc not in job_loc and job_loc != "chile" and "remoto" not in job_loc:
+                        # Para Santiago, también aceptar Metropolitana
+                        if query_loc == "santiago" and "metropolitana" in job_loc:
+                            pass
+                        else:
+                            continue
+                
+                all_jobs.append(j)
     
     logger.info("Search complete: %d jobs from %d/%d scrapers (duration: %.1fs)",
                 len(all_jobs),

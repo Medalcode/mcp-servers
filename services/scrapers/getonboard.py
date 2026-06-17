@@ -14,7 +14,7 @@ USER_AGENTS = [
 ]
 
 
-async def scan_getonboard(query: str, location: str = "Chile") -> list:
+async def scan_getonboard(query: str, location: str = "Chile", filters: dict = None) -> list:
     api_urls = [
         f"https://www.getonbrd.cl/api/jobs?{urllib.parse.urlencode({'search': query, 'location': location, 'remote': 'true'})}",
         f"https://www.getonbrd.com/api/jobs?{urllib.parse.urlencode({'search': query, 'location': location, 'remote': 'true'})}",

@@ -13,7 +13,7 @@ USER_AGENTS = [
 ]
 
 
-async def scan_indeed(query: str, location: str = "Chile") -> list:
+async def scan_indeed(query: str, location: str = "Chile", filters: dict = None) -> list:
     params = {"q": query, "l": location, "sort": "date"}
     url = f"https://cl.indeed.com/trabajo?{urllib.parse.urlencode(params)}"
     headers = {"User-Agent": random.choice(USER_AGENTS), "Accept": "text/html"}
