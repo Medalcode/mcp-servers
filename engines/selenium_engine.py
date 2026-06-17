@@ -125,7 +125,8 @@ class SeleniumEngine(BrowserEngine):
             self._temp_dir = profile_dir
         else:
             self._temp_dir = tempfile.mkdtemp(prefix='chromedev-')
-        opts.add_argument(f"--user-data-dir={self._temp_dir}")
+        if _uc is None:
+            opts.add_argument(f"--user-data-dir={self._temp_dir}")
         opts.add_argument(f"--window-size={window_size}")
         opts.add_argument(f"--lang={lang}")
         opts.add_argument("--disable-search-engine-choice-screen")
@@ -136,7 +137,7 @@ class SeleniumEngine(BrowserEngine):
         chromedriver = _detect_chromedriver()
         try:
             if _uc is not None:
-                self._driver = _uc.Chrome(options=opts)
+                self._driver = _uc.Chrome(options=opts, user_data_dir=self._temp_dir)
             elif chromedriver:
                 service = Service(executable_path=chromedriver)
                 self._driver = webdriver.Chrome(service=service, options=opts)

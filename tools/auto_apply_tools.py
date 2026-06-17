@@ -126,10 +126,8 @@ async def _fill_field_browser(driver_caller, q: FormQuestion, profile: dict) -> 
         return 0, ""
     if q.type in (QuestionType.TEXTAREA, QuestionType.TEXT,
                   QuestionType.EMAIL, QuestionType.TEL, QuestionType.NUMBER):
-        answer = generate_answer(q, profile)
-        ctx = await _get_context_help(q, profile)
-        if ctx:
-            answer = ctx
+        from services.ai_provider import answer_form_question
+        answer = await answer_form_question(q.label, q.type.value, profile)
         if q.name:
             try:
                 await driver_caller("fill", {"selector": _safe_selector("*", q.name), "value": answer})
@@ -271,6 +269,39 @@ async def _batch_apply_one(url: str, profile: dict) -> dict:
     except Exception as e:
         result["error"] = f"Forms detection error: {e}"
         return result
+
+    page_text = await _call_browser_tool("run_script", {"script": "return document.body.innerText"})
+    pt_lower = (page_text or "").lower()
+    curr_url = await _call_browser_tool("run_script", {"script": "return window.location.href"})
+    
+    print(f"[DEBUG] curr_url: {curr_url}")
+    print(f"[DEBUG] pt_lower[:200]: {pt_lower[:200]}")
+    print(f"[DEBUG] forms_json: {forms_json}")
+
+    needs_login = False
+    if "login" in forms_json.lower() or "ingresa" in forms_json.lower() or "contraseña" in forms_json.lower() or "password" in forms_json.lower():
+        needs_login = True
+    elif "inicia sesión" in pt_lower or "ingresa a tu cuenta" in pt_lower or "iniciar sesión" in pt_lower or "login" in (curr_url or "").lower() or "entrar" in pt_lower or "acceder" in pt_lower:
+        needs_login = True
+
+    if needs_login:
+        from services.auto_login import attempt_auto_login
+        login_success = await attempt_auto_login(lambda t, a: _call_browser_tool(t, a), apply_url or url)
+        if login_success:
+            await _call_browser_tool("navigate", {"url": url})
+            await asyncio.sleep(4)
+            if apply_url:
+                await _call_browser_tool("navigate", {"url": apply_url})
+                await asyncio.sleep(4)
+            await _auto_click_apply()
+            try:
+                forms_json = await _call_browser_tool("forms", {})
+            except Exception as e:
+                result["error"] = f"Forms detection error after login: {e}"
+                return result
+        else:
+            result["error"] = "Login failed or missing/invalid credentials in .env"
+            return result
 
     questions = parse_forms_json(forms_json)
     if not questions:

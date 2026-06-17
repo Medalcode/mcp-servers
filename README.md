@@ -4,7 +4,7 @@
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Tests](https://img.shields.io/badge/tests-176%20passing-success.svg)]()
 
-> **Última actualización**: 16 Junio 2026 — Auditoría de seguridad, corrección de fugas de recursos y estabilidad.
+> **Última actualización**: 17 Junio 2026 — Cloudflare Bypass, Integración Auto-Login e Inteligencia de Formularios.
 [![Lint](https://img.shields.io/badge/lint-ruff-passing-brightgreen.svg)]()
 
 Monorepo unificado con 11 servidores MCP (Model Context Protocol) + herramientas de carrera Pathwise.
@@ -174,6 +174,12 @@ mcp-servers/
 ```
 
 ## Recent Improvements
+
+### 2026-06-17 — Cloudflare Bypass, Auto-Login & Rellenado de Formularios
+- **Cloudflare Bypass**: Implementado el soporte directo para `undetected-chromedriver` dentro del motor interno `SeleniumEngine`. Se corrigieron problemas de cuelgues (timeouts de 60s) habilitando `XAUTHORITY` y pasando correctamente variables de entorno al abrir Chrome visualmente.
+- **Auto-Login Integrado**: Se amplió el mapeo de `services/auto_login.py` para detectar proactivamente páginas que exijan inicio de sesión (Computrabajo, Chiletrabajos, GetOnBoard, Laborum, Indeed). Usa credenciales almacenadas en `.env`.
+- **Inyección de Perfil via IA**: Creada la funcionalidad `answer_form_question` que permite responder dinámicamente cualquier campo oculto (radio, textarea, inputs) basándose en el CV subido a la memoria (ej: expectativas salariales, niveles de idiomas).
+- **Flujo Batch Apply Completado**: Se unió la detección de vacantes con un salto limpio a los formularios de inscripción, rellenando todos los pasos, pulsando botones dinámicos como "Postularme" / "Continuar" sin depender de selectores duros.
 
 ### 2026-06-16 — Security Audit, Resource Leaks & Stability Fixes
 - **Resource Leaks**: Fixed SQLite connection leaks in `db_mcp/engine.py` using `contextlib.closing` and `task_tracker/engine.py`.

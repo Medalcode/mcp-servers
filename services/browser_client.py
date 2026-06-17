@@ -74,8 +74,10 @@ async def ensure_browser():
             "BROWSER_TEXT_MAX", "BROWSER_SCREENSHOT_MAX_BYTES",
             "CHROME_USER_DATA_DIR", "CHROME_WINDOW_SIZE", "CHROME_LANG",
             "CHROME_DEBUG_PORT", "CHROME_DEBUG_HOST", "CHROMEDRIVER_PATH",
-            "SELENIUM_REMOTE_URL", "DISPLAY", "PATH", "HOME", "USER",
+            "DISPLAY", "XAUTHORITY",
+            "SELENIUM_REMOTE_URL", "PATH", "HOME", "USER",
             "LANG", "LC_ALL", "XDG_RUNTIME_DIR", "DBUS_SESSION_BUS_ADDRESS",
+            "PYTHONPATH", "TMPDIR"
         }
         env = {k: os.environ[k] for k in _SAFE_ENV_KEYS if k in os.environ}
         env.update({
