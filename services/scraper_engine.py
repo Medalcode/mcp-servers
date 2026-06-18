@@ -17,6 +17,17 @@ from services.scrapers import (
     scan_freeport, scan_teck,
     scan_lundin, scan_glencore,
 )
+from services.scrapers.ibm import scan_ibm
+from services.scrapers.microsoft import scan_microsoft
+from services.scrapers.nestle import scan_nestle
+from services.scrapers.cocacola import scan_cocacola
+from services.scrapers.pepsico import scan_pepsico
+from services.scrapers.sap import scan_sap
+from services.scrapers.cencosud import scan_cencosud
+from services.scrapers.falabella import scan_falabella
+from services.scrapers.latam import scan_latam
+from services.scrapers.entel import scan_entel
+from services.scrapers.bci import scan_bci
 
 logger = logging.getLogger(__name__)
 
@@ -50,6 +61,17 @@ DEDICATED_SCRAPERS = [
     ("Teck", scan_teck),
     ("Lundin", scan_lundin),
     ("Glencore", scan_glencore),
+    ("IBM", scan_ibm),
+    ("Microsoft", scan_microsoft),
+    ("Nestlé", scan_nestle),
+    ("Coca-Cola", scan_cocacola),
+    ("PepsiCo", scan_pepsico),
+    ("SAP", scan_sap),
+    ("Cencosud", scan_cencosud),
+    ("Falabella", scan_falabella),
+    ("Latam Airlines", scan_latam),
+    ("Entel", scan_entel),
+    ("Banco BCI", scan_bci),
 ]
 
 def _get_scrapemcp_url() -> str:

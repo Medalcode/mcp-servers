@@ -16,6 +16,18 @@ from services.scrapers.teck import scan_teck
 from services.scrapers.lundin import scan_lundin
 from services.scrapers.glencore import scan_glencore
 
+from services.scrapers.ibm import scan_ibm
+from services.scrapers.microsoft import scan_microsoft
+from services.scrapers.nestle import scan_nestle
+from services.scrapers.cocacola import scan_cocacola
+from services.scrapers.pepsico import scan_pepsico
+from services.scrapers.sap import scan_sap
+from services.scrapers.cencosud import scan_cencosud
+from services.scrapers.falabella import scan_falabella
+from services.scrapers.latam import scan_latam
+from services.scrapers.entel import scan_entel
+from services.scrapers.bci import scan_bci
+
 __all__ = [
     "scan_chiletrabajos", "scan_computrabajo",
     "scan_getonboard", "scan_remoteok",
@@ -25,4 +37,8 @@ __all__ = [
     "scan_bhp", "scan_codelco",
     "scan_freeport", "scan_teck",
     "scan_lundin", "scan_glencore",
+    "scan_ibm", "scan_microsoft", "scan_nestle",
+    "scan_cocacola", "scan_pepsico", "scan_sap",
+    "scan_cencosud", "scan_falabella", "scan_latam",
+    "scan_entel", "scan_bci"
 ]

@@ -15,7 +15,7 @@ Monorepo unificado con 11 servidores MCP (Model Context Protocol) + Herramientas
 |---|---|---|
 | **BrowserMCP** | `browsermcp` | Automatización de navegador con triple motor (Selenium, Playwright, estático) |
 | **RouteMCP** | `routemcp` | Router de IA multi-provider (Gemini, Groq, Cerebras) con failover |
-| **ScrapeMCP** | `scrapemcp` | Web scraping estructurado con protección SSRF + caché |
+| **ScrapeMCP** | `scrapemcp` | Web scraping estructurado con protección SSRF + caché. 22 portales de empleo. |
 | **DocMCP** | `docmcp` | Manipulación de PDFs: leer, mergear, dividir, comprimir, generar |
 | **LinkedInMCP** | `linkedinmcp` | Búsqueda y aplicación en LinkedIn (solo env vars, sin credenciales en disco) |
 | **Pathwise** | `pathwise` | Plataforma de carrera: perfiles, CV, cover letters, auto-apply |
@@ -179,6 +179,10 @@ mcp-servers/
 ```
 
 ## Recent Improvements
+
+### 2026-06-18 — 11 Nuevos Gigantes Corporativos (ATS Bypass)
+- **Expansión Global y LatAm**: Añadidos 11 nuevos scrapers corporativos a la lista de DEDICATED_SCRAPERS, incluyendo: **IBM, Microsoft, Nestlé, Coca-Cola, PepsiCo, SAP, Cencosud, Falabella, Latam Airlines, Entel y Banco BCI**.
+- **Motor DDG HTML**: Para sortear los estrictos WAFs de plataformas ATS (Workday, SuccessFactors, Eightfold), se diseñó un motor `base_ddg.py` que inyecta dorks nativos a través de DuckDuckGo HTML, extrayendo las vacantes limpias sin tocar los servidores empresariales directamente ni exponer IPs.
 
 ### 2026-06-17 — Web UI Dashboard, Profile Sync Pre-Vuelo & Filtros Avanzados
 - **Pathwise Dashboard**: Creación de una Interfaz Gráfica interactiva (`frontend/`, `api_server.py`) con diseño Glassmorphism oscuro. Permite orquestar todo el ecosistema (búsqueda, registro, logs en vivo) sin tocar la terminal.
