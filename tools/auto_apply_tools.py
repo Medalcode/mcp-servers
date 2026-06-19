@@ -67,7 +67,7 @@ async def _should_apply(page_text: str, profile: dict) -> tuple[bool, str]:
         "offer_text": text_snippet
     }
     prompt = json.dumps(msg, ensure_ascii=False)
-    prompt = f"Analiza esta oferta de trabajo:\n{prompt}\n\nResponde SOLO con JSON: {{\"apply\": true/false, \"reason\": \"explicacion corta en espanol\"}}"
+    prompt = f"Analiza esta oferta de trabajo:\n{prompt}\n\nSi el texto extraído de la página no contiene suficiente información sobre el puesto (menos de 200 caracteres relevantes), responde SOLO con JSON: {{\"apply\": true, \"reason\": \"No hay suficiente texto para evaluar, se procede con postulación\"}}. Si hay suficiente información, responde SOLO con JSON: {{\"apply\": true/false, \"reason\": \"explicacion corta en espanol\"}}"
 
     try:
         result = await _call_ai(prompt[:3000])
@@ -368,16 +368,19 @@ def register_tools(mcp: FastMCP):
         if not profile:
             return "No profile found."
 
-        # Skill check
+        # Skill check (use job_description if provided, otherwise scrape page)
         await _call_browser_tool("navigate", {"url": form_url})
         await asyncio.sleep(3)
 
-        page_text = await _call_browser_tool("run_script", {"script": "return (document.body.textContent || '').slice(0, 3000)"})
-        should, reason = await _should_apply(page_text, profile)
+        check_text = job_description if job_description.strip() else await _call_browser_tool("run_script", {"script": "return (document.body.textContent || '').slice(0, 3000)"})
+        should, reason = await _should_apply(check_text, profile)
         if not should:
             return f"=== OFERTA RECHAZADA ===\n{reason}\n\nNo se postuló automáticamente."
 
         letter = await generate_cover_letter(profile, job_title, company, job_description, tone)
+
+        # Try to click apply button if form isn't visible yet
+        await _auto_click_apply()
 
         forms_info = await _call_browser_tool("forms", {})
 
