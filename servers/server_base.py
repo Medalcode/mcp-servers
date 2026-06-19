@@ -1,7 +1,6 @@
 import os
 import sys
 import logging
-from typing import Any
 
 from dotenv import load_dotenv
 from mcp.server.fastmcp import FastMCP

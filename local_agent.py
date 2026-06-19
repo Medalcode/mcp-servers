@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 """Local agent — Ollama + tools (bash, read, web)."""
-import json, sys, subprocess, re
+import json
+import sys
+import subprocess
+import re
 from openai import OpenAI
 
 client = OpenAI(base_url="http://localhost:11434/v1", api_key="ollama")
@@ -23,8 +26,13 @@ Reglas:
 
 def run_tool(name, args):
     if name == "bash":
-        r = subprocess.run(args["command"], shell=True, capture_output=True, text=True, timeout=30)
-        return (r.stdout or r.stderr or "(sin output)")[:4000]
+        import shlex
+        try:
+            cmd = shlex.split(args["command"])
+            r = subprocess.run(cmd, shell=False, capture_output=True, text=True, timeout=30)
+            return (r.stdout or r.stderr or "(sin output)")[:4000]
+        except Exception as e:
+            return f"Error executing command: {e}"
     if name == "read":
         with open(args["path"]) as f:
             return f.read()[:4000]

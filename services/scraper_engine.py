@@ -163,6 +163,15 @@ async def _run_scraper_with_retry(name: str, scraper_fn, query: str, location: s
     )
 
 
+def _matches_location(job_loc: str, query_loc: str) -> bool:
+    if not query_loc or query_loc in ["chile", "remoto", ""]:
+        return True
+    if query_loc not in job_loc and job_loc != "chile" and "remoto" not in job_loc:
+        if query_loc == "santiago" and "metropolitana" in job_loc:
+            return True
+        return False
+    return True
+
 async def search_all(query: str, location: str = "Chile",
                      remote_only: bool = False, use_scrapemcp_fallback: bool = True, filters: dict = None) -> list:
     tasks = [
@@ -197,21 +206,8 @@ async def search_all(query: str, location: str = "Chile",
         if r.success:
             for j in r.jobs:
                 j["_scraperSource"] = r.source
-                
-                # Post-filtering de ubicación muy básico para arreglar portales que ignoran el parámetro
-                if location and location.lower() not in ["chile", "remoto", ""]:
-                    job_loc = j.get("location", "").lower()
-                    query_loc = location.lower()
-                    
-                    # Si el trabajo dice "chile" a secas, lo dejamos pasar asumiendo que puede ser nacional
-                    if query_loc not in job_loc and job_loc != "chile" and "remoto" not in job_loc:
-                        # Para Santiago, también aceptar Metropolitana
-                        if query_loc == "santiago" and "metropolitana" in job_loc:
-                            pass
-                        else:
-                            continue
-                
-                all_jobs.append(j)
+                if _matches_location(j.get("location", "").lower(), location.lower()):
+                    all_jobs.append(j)
     
     logger.info("Search complete: %d jobs from %d/%d scrapers (duration: %.1fs)",
                 len(all_jobs),

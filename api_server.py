@@ -1,5 +1,6 @@
 import asyncio
-import os
+import sqlite3
+import uuid
 from fastapi import FastAPI, BackgroundTasks
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -13,19 +14,43 @@ from services.job_service import search_jobs_with_ai, mass_register_sf
 
 app = FastAPI(title="Pathwise UI Dashboard")
 
-# Global metrics store (in a real app, use a DB)
-metrics = {
-    "jobs_scanned": 0,
-    "successful_logins": 0,
-    "accounts_created": 0,
-    "applications_sent": 0,
-    "recent_logs": []
-}
+DB_PATH = "metrics.db"
+
+def init_db():
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.execute('''CREATE TABLE IF NOT EXISTS metrics (
+                            key TEXT PRIMARY KEY,
+                            value INTEGER
+                        )''')
+        conn.execute('''CREATE TABLE IF NOT EXISTS logs (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            message TEXT,
+                            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+                        )''')
+        conn.execute('''CREATE TABLE IF NOT EXISTS task_results (
+                            task_id TEXT PRIMARY KEY,
+                            status TEXT,
+                            data TEXT
+                        )''')
+        defaults = {"jobs_scanned": 0, "successful_logins": 0, "accounts_created": 0, "applications_sent": 0}
+        for k, v in defaults.items():
+            conn.execute("INSERT OR IGNORE INTO metrics (key, value) VALUES (?, ?)", (k, v))
+init_db()
+
+def update_metric(key: str, amount: int = 1):
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.execute("UPDATE metrics SET value = value + ? WHERE key = ?", (amount, key))
+
+def get_metrics_dict():
+    with sqlite3.connect(DB_PATH) as conn:
+        metrics = {row[0]: row[1] for row in conn.execute("SELECT key, value FROM metrics")}
+        logs = [row[0] for row in conn.execute("SELECT message FROM logs ORDER BY id DESC LIMIT 50")]
+        metrics["recent_logs"] = logs[::-1]
+        return metrics
 
 def add_log(msg: str):
-    metrics["recent_logs"].append(msg)
-    if len(metrics["recent_logs"]) > 50:
-        metrics["recent_logs"].pop(0)
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.execute("INSERT INTO logs (message) VALUES (?)", (msg,))
 
 class SearchRequest(BaseModel):
     query: str
@@ -39,15 +64,22 @@ class RegisterRequest(BaseModel):
 class ApplyRequest(BaseModel):
     url: str
 
-# API Endpoints
 @app.get("/api/metrics")
 async def get_metrics():
-    return JSONResponse(metrics)
+    return JSONResponse(get_metrics_dict())
 
-@app.post("/api/search")
-async def api_search(req: SearchRequest):
+@app.get("/api/tasks/{task_id}")
+async def get_task_status(task_id: str):
+    import json
+    with sqlite3.connect(DB_PATH) as conn:
+        row = conn.execute("SELECT status, data FROM task_results WHERE task_id = ?", (task_id,)).fetchone()
+        if not row:
+            return JSONResponse({"status": "error", "message": "Task not found"}, status_code=404)
+        return {"status": row[0], "data": json.loads(row[1]) if row[1] else None}
+
+async def bg_search(task_id: str, req: SearchRequest):
+    import json
     add_log(f"Starting job search for: {req.query}")
-    # We use empty profile for fast scanning
     profile = {"personalInfo": {"currentTitle": req.query, "summary": "Buscando oportunidades en " + req.query}}
     try:
         jobs = await search_jobs_with_ai(
@@ -57,27 +89,45 @@ async def api_search(req: SearchRequest):
             remote_only=req.remote_only,
             use_new_engine=True
         )
-        metrics["jobs_scanned"] += len(jobs)
+        update_metric("jobs_scanned", len(jobs))
         add_log(f"Found {len(jobs)} jobs for {req.query}")
-        return {"status": "success", "data": jobs}
+        with sqlite3.connect(DB_PATH) as conn:
+            conn.execute("UPDATE task_results SET status = 'success', data = ? WHERE task_id = ?", (json.dumps(jobs), task_id))
     except Exception as e:
         add_log(f"Error searching jobs: {str(e)}")
-        return JSONResponse({"status": "error", "message": str(e)}, status_code=500)
+        with sqlite3.connect(DB_PATH) as conn:
+            conn.execute("UPDATE task_results SET status = 'error', data = ? WHERE task_id = ?", (json.dumps({"message": str(e)}), task_id))
 
-@app.post("/api/register")
-async def api_register(req: RegisterRequest):
-    add_log(f"Starting mass registration for {len(req.urls)} portals...")
+@app.post("/api/search")
+async def api_search(req: SearchRequest, bg_tasks: BackgroundTasks):
+    task_id = str(uuid.uuid4())
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.execute("INSERT INTO task_results (task_id, status) VALUES (?, 'running')", (task_id,))
+    bg_tasks.add_task(bg_search, task_id, req)
+    return {"status": "accepted", "task_id": task_id}
+
+async def bg_register(task_id: str, urls: list[str]):
+    import json
+    add_log(f"Starting mass registration for {len(urls)} portals...")
     try:
-        results = await mass_register_sf(req.urls)
-        
+        results = await mass_register_sf(urls)
         success_count = sum(1 for res in results.values() if res == "SUCCESS")
-        metrics["accounts_created"] += success_count
-        add_log(f"Registration completed. Success: {success_count}/{len(req.urls)}")
-        
-        return {"status": "success", "data": results}
+        update_metric("accounts_created", success_count)
+        add_log(f"Registration completed. Success: {success_count}/{len(urls)}")
+        with sqlite3.connect(DB_PATH) as conn:
+            conn.execute("UPDATE task_results SET status = 'success', data = ? WHERE task_id = ?", (json.dumps(results), task_id))
     except Exception as e:
         add_log(f"Error in mass registration: {str(e)}")
-        return JSONResponse({"status": "error", "message": str(e)}, status_code=500)
+        with sqlite3.connect(DB_PATH) as conn:
+            conn.execute("UPDATE task_results SET status = 'error', data = ? WHERE task_id = ?", (json.dumps({"message": str(e)}), task_id))
+
+@app.post("/api/register")
+async def api_register(req: RegisterRequest, bg_tasks: BackgroundTasks):
+    task_id = str(uuid.uuid4())
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.execute("INSERT INTO task_results (task_id, status) VALUES (?, 'running')", (task_id,))
+    bg_tasks.add_task(bg_register, task_id, req.urls)
+    return {"status": "accepted", "task_id": task_id}
 
 @app.post("/api/apply")
 async def api_apply(req: ApplyRequest):
@@ -89,7 +139,6 @@ async def api_apply(req: ApplyRequest):
     
     engine = SeleniumEngine()
     try:
-        # Load CV Profile
         cv_service = CVService()
         profile_data = cv_service.parse_pdf("/home/medalcode/Escritorio/Opencode Sources/CV_06_2026.pdf")
         
@@ -97,13 +146,11 @@ async def api_apply(req: ApplyRequest):
             func = getattr(engine, tool_name)
             return await asyncio.to_thread(func, **args)
             
-        # 1. Login
         add_log("Autenticando en el portal...")
-        engine.navigate(req.url)
+        await asyncio.to_thread(engine.navigate, req.url)
         await asyncio.sleep(3)
         await attempt_auto_login(caller, req.url)
         
-        # 2. Profile Sync
         add_log("Sincronizando y verificando perfil pre-vuelo...")
         sync_engine = ProfileSyncEngine(engine, profile_data)
         is_synced = await sync_engine.ensure_profile_complete(req.url)
@@ -113,12 +160,10 @@ async def api_apply(req: ApplyRequest):
             return JSONResponse({"status": "error", "message": "Profile incomplete"}, status_code=400)
             
         add_log("Perfil verificado 100%. Procediendo con la postulación...")
-        # 3. Simulate apply 
-        engine.navigate(req.url)
+        await asyncio.to_thread(engine.navigate, req.url)
         await asyncio.sleep(5)
         
-        # Fallback click "Apply" logic
-        engine.run_script("""
+        await asyncio.to_thread(engine.run_script, """
         const btns = document.querySelectorAll('button, a');
         btns.forEach(btn => {
             const txt = btn.innerText.toLowerCase();
@@ -130,7 +175,7 @@ async def api_apply(req: ApplyRequest):
         await asyncio.sleep(5)
         
         add_log("Postulación completada exitosamente.")
-        metrics["applications_sent"] += 1
+        update_metric("applications_sent", 1)
         return {"status": "success"}
     except Exception as e:
         add_log(f"Error en postulación: {str(e)}")
@@ -138,7 +183,6 @@ async def api_apply(req: ApplyRequest):
     finally:
         engine.close()
 
-# Serve static frontend
 app.mount("/static", StaticFiles(directory="frontend"), name="static")
 
 @app.get("/")

@@ -1,7 +1,6 @@
 import json
 import logging
 import os
-import sys
 from mcp.server.fastmcp import FastMCP
 from services.browser_client import call_tool, ensure_browser, stop_browser
 

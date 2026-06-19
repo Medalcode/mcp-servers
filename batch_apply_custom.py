@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 """Batch apply to all to_apply offers using logged-in Chrome profile."""
-import asyncio, sys, os, json, re, sqlite3
+import asyncio
+import sys
+import os
+import re
+import sqlite3
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 DB = os.path.expanduser("~/.local/share/pathwise/pathwise.db")
@@ -118,16 +122,16 @@ async def apply_one(app, profile, call_tool):
     await asyncio.sleep(1)
 
     if "login" in page2.lower() or "ingresa" in page2.lower() or "registrate" in page2.lower():
-        print(f"  LOGIN REQUIRED - skipping (no auto-login for this portal)")
-        update_status(aid, "to_apply", notes=f"Login required on this portal")
+        print("  LOGIN REQUIRED - skipping (no auto-login for this portal)")
+        update_status(aid, "to_apply", notes="Login required on this portal")
         return False
 
     forms = await call_tool("forms", {})
     print(f"  Forms: {forms[:400]}...")
 
     if "No forms found" in forms:
-        print(f"  No forms found")
-        update_status(aid, "to_apply", notes=f"No application form found on page")
+        print("  No forms found")
+        update_status(aid, "to_apply", notes="No application form found on page")
         return False
 
     # Parse and fill fields
@@ -155,7 +159,7 @@ async def apply_one(app, profile, call_tool):
             await asyncio.sleep(0.3)
 
     if not filled:
-        print(f"  No fields to fill")
+        print("  No fields to fill")
         update_status(aid, "to_apply", notes="No recognizable fields")
         return False
 
@@ -168,7 +172,7 @@ async def apply_one(app, profile, call_tool):
         print(f"  Submit clicked: {s1}")
 
     update_status(aid, "applied", notes=f"Applied via batch_apply_custom on {__import__('datetime').datetime.now().strftime('%Y-%m-%d')}")
-    print(f"  ✅ APPLIED SUCCESSFULLY")
+    print("  ✅ APPLIED SUCCESSFULLY")
     return True
 
 async def main():

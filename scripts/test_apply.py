@@ -11,7 +11,6 @@ load_dotenv()
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from services.job_service import search_jobs
-from database.repos.profiles import get_full_profile
 from tools.auto_apply_tools import _batch_apply_one
 from services.browser_client import stop_browser
 

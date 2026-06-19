@@ -10,7 +10,7 @@ WORKDIR /app
 COPY pyproject.toml .
 COPY . .
 
-RUN pip install --no-cache-dir -e . && \
+RUN pip install --no-cache-dir . && \
     pip install --no-cache-dir "PyGithub>=2.0.0"
 
 ENV BROWSER_HEADLESS=true \

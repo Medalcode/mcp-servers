@@ -53,7 +53,7 @@ async def query_sqlite(path: str, sql: str) -> str:
                 rows = cur.fetchall()
                 result = _format_results(columns, [tuple(r) for r in rows])
             else:
-                result = f"Command executed (Read-Only Mode active)"
+                result = "Command executed (Read-Only Mode active)"
             return f"Database: {resolved}\n\n{result}"
     except Exception as e:
         return f"SQLite error: {e}"
@@ -69,7 +69,7 @@ async def query_duckdb(path: str, sql: str) -> str:
                 rows = result.fetchall()
                 formatted = _format_results(columns, rows)
             else:
-                formatted = f"Command executed (Read-Only Mode active)"
+                formatted = "Command executed (Read-Only Mode active)"
             db_name = path or ":memory:"
             return f"Database: {db_name}\n\n{formatted}"
     except Exception as e:
@@ -88,7 +88,8 @@ async def list_sqlite_tables(path: str) -> str:
                 return f"No tables found in {resolved}"
             lines = [f"# Tables — {resolved}", ""]
             for t in tables:
-                count = conn.execute(f"SELECT COUNT(*) FROM \"{t}\"").fetchone()[0]
+                safe_t = t.replace('"', '""')
+                count = conn.execute(f"SELECT COUNT(*) FROM \"{safe_t}\"").fetchone()[0]
                 lines.append(f"- {t} ({count} rows)")
             return "\n".join(lines)
     except Exception as e:
@@ -99,7 +100,8 @@ async def describe_sqlite_table(path: str, table: str) -> str:
     try:
         conn, resolved = _get_sqlite_conn(path)
         with closing(conn):
-            cur = conn.execute(f"PRAGMA table_info(\"{table}\")")
+            safe_table = table.replace('"', '""')
+            cur = conn.execute(f"PRAGMA table_info(\"{safe_table}\")")
             cols = cur.fetchall()
             if not cols:
                 return f"Table '{table}' not found"
@@ -109,7 +111,7 @@ async def describe_sqlite_table(path: str, table: str) -> str:
                 nn = " NOT NULL" if c[3] else ""
                 default = f" DEFAULT {c[4]}" if c[4] is not None else ""
                 lines.append(f"  {pk} {c[1]} ({c[2]}){nn}{default}")
-            count = conn.execute(f"SELECT COUNT(*) FROM \"{table}\"").fetchone()[0]
+            count = conn.execute(f"SELECT COUNT(*) FROM \"{safe_table}\"").fetchone()[0]
             lines.append(f"\n{count} rows total")
             return "\n".join(lines)
     except Exception as e:

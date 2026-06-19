@@ -1,8 +1,6 @@
 import logging
-import os
 import sys
 from mcp.server.fastmcp import FastMCP
-from dotenv import load_dotenv
 from database import init_db
 import tools.profile_tools
 import tools.job_tools

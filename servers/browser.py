@@ -1,7 +1,6 @@
 import atexit
 import ipaddress
 import logging
-import sys
 import os
 import base64
 import re

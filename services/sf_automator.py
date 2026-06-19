@@ -1,7 +1,6 @@
 import asyncio
 import os
 import logging
-from urllib.parse import urlparse
 
 from engines.selenium_engine import SeleniumEngine
 from services.email_reader import EmailVerificationReader

@@ -237,11 +237,63 @@ def generate_radio_answer(question: FormQuestion, profile: dict) -> str:
     return "Sí"
 
 
+def _match_city(valid_opts, profile):
+    city = profile.get("personalInfo", {}).get("city", "Santiago").lower()
+    for opt in valid_opts:
+        if city in opt.lower() or opt.lower() in city:
+            return opt
+    return None
+
+def _match_country(valid_opts, profile):
+    for opt in valid_opts:
+        if "chile" in opt.lower():
+            return opt
+    return None
+
+def _match_education(valid_opts, profile):
+    for opt in valid_opts:
+        if any(g in opt.lower() for g in ["universitario", "técnico", "superior", "educación superior", "pregrado"]):
+            return opt
+    return None
+
+def _match_year(valid_opts, profile):
+    for e in profile.get("education", []):
+        year = str(e.get("year", "") or e.get("endYear", ""))
+        if year:
+            for opt in valid_opts:
+                if year in opt:
+                    return opt
+    numeric_opts = [o for o in valid_opts if re.search(r'\d{4}', o)]
+    return numeric_opts[0] if numeric_opts else None
+
+def _match_degree(valid_opts, profile):
+    for e in profile.get("education", []):
+        degree = e.get("degree", "").lower()
+        if degree:
+            for opt in valid_opts:
+                if degree in opt.lower() or opt.lower() in degree:
+                    return opt
+    return None
+
+def _match_gender(valid_opts, profile):
+    for opt in valid_opts:
+        if any(g in opt.lower() for g in ["masculino", "hombre", "varón"]):
+            return opt
+    return None
+
+_SELECT_RULES = [
+    (["comuna", "ciudad", "región", "region"], _match_city),
+    (["país", "pais"], _match_country),
+    (["escolaridad", "educación", "educacion", "estudios", "nivel académico", "nivel academico"], _match_education),
+    (["año", "year", "semestre", "nivel"], _match_year),
+    (["carrera", "título", "titulo", "grado"], _match_degree),
+    (["género", "genero", "sexo"], _match_gender),
+]
+
 def generate_select_answer(question: FormQuestion, profile: dict) -> str:
     options = question.options
     if not options:
         return ""
-    label_lower = question.label.lower()
     
     skip_items = {"seleccionar", "seleccione", "elige", "choose", "select", "",
                   "ninguno", "ninguna", "nada", "none", "no aplica", "n/a"}
@@ -251,55 +303,11 @@ def generate_select_answer(question: FormQuestion, profile: dict) -> str:
         valid_opts = options
     first_valid = valid_opts[0]
     
-    if any(t in label_lower for t in ["comuna", "ciudad", "región", "region"]):
-        city = profile.get("personalInfo", {}).get("city", "Santiago")
-        for opt in valid_opts:
-            if city.lower() in opt.lower() or opt.lower() in city.lower():
-                return opt
-        return first_valid
-    
-    if any(t in label_lower for t in ["país", "pais"]):
-        for opt in valid_opts:
-            if "chile" in opt.lower():
-                return opt
-        return first_valid
-    
-    if any(t in label_lower for t in ["escolaridad", "educación", "educacion",
-                                       "estudios", "nivel académico", "nivel academico"]):
-        for opt in valid_opts:
-            if any(g in opt.lower() for g in ["universitario", "técnico", "superior",
-                                               "educación superior", "pregrado"]):
-                return opt
-        return first_valid
-    
-    if any(t in label_lower for t in ["año", "year", "semestre", "nivel"]):
-        edu = profile.get("education", [])
-        for e in edu:
-            year = e.get("year", "") or e.get("endYear", "")
-            if year:
-                for opt in valid_opts:
-                    if str(year) in opt:
-                        return opt
-        if valid_opts:
-            numeric_opts = [o for o in valid_opts if re.search(r'\d{4}', o)]
-            if numeric_opts:
-                return numeric_opts[0]
-        return first_valid
-    
-    if any(t in label_lower for t in ["carrera", "título", "titulo", "grado"]):
-        edu = profile.get("education", [])
-        for e in edu:
-            degree = e.get("degree", "")
-            if degree:
-                for opt in valid_opts:
-                    if degree.lower() in opt.lower() or opt.lower() in degree.lower():
-                        return opt
-        return first_valid
-    
-    if any(t in label_lower for t in ["género", "genero", "sexo"]):
-        for opt in valid_opts:
-            if any(g in opt.lower() for g in ["masculino", "hombre", "varón"]):
-                return opt
-        return first_valid
-    
+    label_lower = question.label.lower()
+    for keywords, matcher in _SELECT_RULES:
+        if any(k in label_lower for k in keywords):
+            match = matcher(valid_opts, profile)
+            if match:
+                return match
+            
     return first_valid

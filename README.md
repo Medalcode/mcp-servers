@@ -180,6 +180,11 @@ mcp-servers/
 
 ## Recent Improvements
 
+### 2026-06-19 — Auditoría de Seguridad, Refactorización Asíncrona y Testing (199 Tests)
+- **Zero Vulnerabilidades Críticas**: Se solucionó un RCE (Remote Code Execution) mitigando el uso de `shell=True` en `local_agent.py` y se previnieron inyecciones SQL parametrizando los identificadores de tablas en `db_mcp/engine.py`.
+- **Arquitectura Asíncrona y Reactiva**: El `api_server.py` abandonó los bloqueos de variables globales en favor de una base de datos SQLite nativa para métricas. Las llamadas pesadas ahora usan `BackgroundTasks` con *Job Polling*, evitando bloqueos del Event Loop y mejorando el Frontend con actualizaciones asíncronas de resultados.
+- **Mantenibilidad y Clean Code**: Refactorización de componentes complejos (`form_filler.py`, `scraper_engine.py`) con mapas de estrategia escalables. El repositorio completó exitosamente una migración a `ruff`, resolviendo +1300 advertencias de estilo. Se cuenta ahora con 199 tests ejecutándose y pasando en verde.
+
 ### 2026-06-18 — 11 Nuevos Gigantes Corporativos (ATS Bypass)
 - **Expansión Global y LatAm**: Añadidos 11 nuevos scrapers corporativos a la lista de DEDICATED_SCRAPERS, incluyendo: **IBM, Microsoft, Nestlé, Coca-Cola, PepsiCo, SAP, Cencosud, Falabella, Latam Airlines, Entel y Banco BCI**.
 - **Motor DDG HTML**: Para sortear los estrictos WAFs de plataformas ATS (Workday, SuccessFactors, Eightfold), se diseñó un motor `base_ddg.py` que inyecta dorks nativos a través de DuckDuckGo HTML, extrayendo las vacantes limpias sin tocar los servidores empresariales directamente ni exponer IPs.

@@ -1,10 +1,9 @@
 import pytest
-from unittest.mock import patch, AsyncMock, MagicMock
+from unittest.mock import patch, AsyncMock
 from services.ai_provider import parse_cv_with_ai, generate_cover_letter, generate_personas
 
 @pytest.fixture(autouse=True)
 def reset_engine():
-    from services.ai_provider import _engine
     import services.ai_provider as ap
     ap._engine = None
 

@@ -78,7 +78,18 @@ async function startScan() {
         
         const json = await res.json();
         
-        if (json.status === 'success') {
+        if (json.status === 'accepted') {
+            const taskId = json.task_id;
+            pollTask(taskId, (data) => {
+                document.getElementById('results-count').innerText = data.length;
+                renderTable(data);
+                logToConsole(`Búsqueda finalizada. ${data.length} resultados encontrados.`, 'success');
+            }, (errorMsg) => {
+                logToConsole(`Error en la búsqueda: ${errorMsg}`, 'error');
+                document.getElementById('results-body').innerHTML = `<tr><td colspan="6" style="text-align:center; color: var(--danger);">Error: ${errorMsg}</td></tr>`;
+            });
+        } else if (json.status === 'success') {
+            // Fallback for immediate response
             document.getElementById('results-count').innerText = json.data.length;
             renderTable(json.data);
             logToConsole(`Búsqueda finalizada. ${json.data.length} resultados encontrados.`, 'success');
@@ -89,6 +100,25 @@ async function startScan() {
     } catch(e) {
         logToConsole(`Error de red: ${e}`, 'error');
     }
+}
+
+function pollTask(taskId, onSuccess, onError) {
+    const interval = setInterval(async () => {
+        try {
+            const res = await fetch(`/api/tasks/${taskId}`);
+            const json = await res.json();
+            if (json.status === 'success') {
+                clearInterval(interval);
+                onSuccess(json.data);
+            } else if (json.status === 'error') {
+                clearInterval(interval);
+                onError(json.data && json.data.message ? json.data.message : "Error desconocido");
+            }
+        } catch(e) {
+            clearInterval(interval);
+            onError(`Error polling task: ${e}`);
+        }
+    }, 2000);
 }
 
 async function startRegister() {
@@ -110,9 +140,17 @@ async function startRegister() {
         });
         
         const json = await res.json();
-        if(json.status === 'success') {
+        if(json.status === 'accepted') {
+            pollTask(json.task_id, (data) => {
+                logToConsole(`Registro masivo completado.`, 'success');
+                for(const [url, result] of Object.entries(data)) {
+                    logToConsole(`${url}: ${result}`, result === 'SUCCESS' ? 'success' : 'error');
+                }
+            }, (errorMsg) => {
+                logToConsole(`Error en registro: ${errorMsg}`, 'error');
+            });
+        } else if(json.status === 'success') {
             logToConsole(`Registro masivo completado.`, 'success');
-            // Show details in console
             for(const [url, result] of Object.entries(json.data)) {
                 logToConsole(`${url}: ${result}`, result === 'SUCCESS' ? 'success' : 'error');
             }

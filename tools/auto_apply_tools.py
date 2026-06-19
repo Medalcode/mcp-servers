@@ -9,7 +9,6 @@ from database.repos import profiles as profile_repo
 import asyncio
 import json
 import logging
-import os
 import re
 from urllib.parse import urlparse, quote
 

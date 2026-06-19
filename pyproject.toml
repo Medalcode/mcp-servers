@@ -28,6 +28,7 @@ dependencies = [
     "httpx>=0.27.0",
     "requests>=2.31.0",
     "beautifulsoup4>=4.12.0",
+    "html5lib>=1.1",
     "lxml>=5.0.0",
     "selenium>=4.30.0",
     "pymupdf>=1.23.0",
@@ -40,10 +41,14 @@ dependencies = [
 duckdb = ["duckdb>=1.0.0"]
 github = ["pygithub>=2.0.0"]
 email = ["google-api-python-client>=2.0.0", "google-auth-oauthlib>=1.0.0"]
-test = [
+dev = [
     "pytest>=8.0.0",
     "pytest-asyncio>=0.24.0",
     "pytest-mock>=3.14.0",
+    "pytest-cov>=5.0.0",
+    "bandit>=1.7.0",
+    "flake8>=7.0.0",
+    "ruff>=0.4.0"
 ]
 all = [
     "medalcode-mcp-servers[duckdb,github,email]",
@@ -74,3 +79,6 @@ packages = ["servers", "engines", "router", "router.providers", "scrapers", "doc
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+
+[tool.ruff.lint]
+ignore = ["E402", "E722", "F841", "E701"]

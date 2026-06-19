@@ -1,5 +1,5 @@
 import pytest
-from unittest.mock import patch, AsyncMock, MagicMock, call
+from unittest.mock import patch, AsyncMock, MagicMock
 
 
 @pytest.fixture(autouse=True)

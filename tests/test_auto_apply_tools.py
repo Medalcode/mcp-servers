@@ -1,4 +1,3 @@
-import pytest
 from tools.auto_apply_tools import _css_escape, _safe_selector
 
 
