@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 RSS_URL = "https://empleos.codelco.cl/services/rss/job/?locale=es_ES&keywords=({query})"
 
 
-async def scan_codelco(query: str, location: str = "") -> list:
+async def scan_codelco(query: str, location: str = "", filters: dict = None) -> list:
     if query:
         url = RSS_URL.format(query=query)
         if location:

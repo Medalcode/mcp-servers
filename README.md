@@ -198,6 +198,11 @@ mcp-servers/
 ### 2026-06-17 — Cloudflare Bypass, Auto-Login & Rellenado de Formularios
 - **Cloudflare Bypass**: Implementado el soporte directo para `undetected-chromedriver` dentro del motor interno `SeleniumEngine`. Se corrigieron problemas de cuelgues (timeouts de 60s) habilitando `XAUTHORITY` y pasando correctamente variables de entorno al abrir Chrome visualmente.
 - **Auto-Login Integrado**: Se amplió el mapeo de `services/auto_login.py` para detectar proactivamente páginas que exijan inicio de sesión (Computrabajo, Chiletrabajos, IBM, Sonda).
+-   **Plataformas Genéricas**: LinkedIn, Computrabajo, Chiletrabajos, Laborum, Indeed, Bebee, FirstJob, GetOnBoard, Randstad, Trabajando.com
+-   **Minería (Chile)**: BHP, Codelco, Freeport, Glencore, Lundin, Teck.
+-   **Global Giants / LatAm**:
+    -   *Retail / Servicios*: Cencosud (Jumbo, Paris), Falabella (Sodimac, Tottus), Latam Airlines, Entel, Banco BCI.
+    -   *Tecnología / Consumo*: IBM, Microsoft, SAP, Nestlé, Coca-Cola, PepsiCo.
 - **Inyección de Perfil via IA**: Creada la funcionalidad `answer_form_question` que permite responder dinámicamente cualquier campo oculto (radio, textarea, inputs) basándose en el CV subido a la memoria.
 
 ### 2026-06-16 — Security Audit, Resource Leaks & Stability Fixes

@@ -217,6 +217,7 @@ def generate_radio_answer(question: FormQuestion, profile: dict) -> str:
     negative_patterns = [
         r'^(no\s|no )',
         r'(discapacidad|enfermedad|problema)',
+        r'(newsletter|notification|notificación|boletín|suscripción|ofertas|publicidad)',
     ]
     
     for pattern in negative_patterns:

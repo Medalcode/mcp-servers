@@ -278,9 +278,7 @@ async def _batch_apply_one(url: str, profile: dict) -> dict:
     pt_lower = (page_text or "").lower()
     curr_url = await _call_browser_tool("run_script", {"script": "return window.location.href"})
     
-    print(f"[DEBUG] curr_url: {curr_url}")
-    print(f"[DEBUG] pt_lower[:200]: {pt_lower[:200]}")
-    print(f"[DEBUG] forms_json: {forms_json}")
+    # Removed debug prints to prevent false positive interactive prompt detections
 
     needs_login = False
     if "login" in forms_json.lower() or "ingresa" in forms_json.lower() or "contraseña" in forms_json.lower() or "password" in forms_json.lower():

@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 BHP_RSS_URL = "https://careers.bhp.com/services/rss/job/?locale=es_ES&keywords=({query})"
 
 
-async def scan_bhp(query: str, location: str = "") -> list:
+async def scan_bhp(query: str, location: str = "", filters: dict = None) -> list:
     rss_url = BHP_RSS_URL.format(query=query)
     if location:
         rss_url += f"+({location})"

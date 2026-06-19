@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 RSS_URL = "https://jobs.lundinmining.com/services/rss/job/?locale=en_US&keywords=({query})"
 
 
-async def scan_lundin(query: str, location: str = "") -> list:
+async def scan_lundin(query: str, location: str = "", filters: dict = None) -> list:
     url = RSS_URL.format(query=query)
     if location:
         url += f"+({location})"
