@@ -174,8 +174,14 @@ def _matches_location(job_loc: str, query_loc: str) -> bool:
 
 async def search_all(query: str, location: str = "Chile",
                      remote_only: bool = False, use_scrapemcp_fallback: bool = True, filters: dict = None) -> list:
+    sem = asyncio.Semaphore(5)
+    
+    async def _sem_task(name, fn):
+        async with sem:
+            return await _run_scraper_with_retry(name, fn, query, location, filters)
+
     tasks = [
-        _run_scraper_with_retry(name, fn, query, location, filters)
+        _sem_task(name, fn)
         for name, fn in DEDICATED_SCRAPERS
     ]
     

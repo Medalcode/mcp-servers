@@ -16,8 +16,13 @@ app = FastAPI(title="Pathwise UI Dashboard")
 
 DB_PATH = "metrics.db"
 
+def _get_db():
+    conn = sqlite3.connect(DB_PATH, timeout=20.0)
+    conn.execute("PRAGMA journal_mode=WAL;")
+    return conn
+
 def init_db():
-    with sqlite3.connect(DB_PATH) as conn:
+    with _get_db() as conn:
         conn.execute('''CREATE TABLE IF NOT EXISTS metrics (
                             key TEXT PRIMARY KEY,
                             value INTEGER
@@ -38,18 +43,18 @@ def init_db():
 init_db()
 
 def update_metric(key: str, amount: int = 1):
-    with sqlite3.connect(DB_PATH) as conn:
+    with _get_db() as conn:
         conn.execute("UPDATE metrics SET value = value + ? WHERE key = ?", (amount, key))
 
 def get_metrics_dict():
-    with sqlite3.connect(DB_PATH) as conn:
+    with _get_db() as conn:
         metrics = {row[0]: row[1] for row in conn.execute("SELECT key, value FROM metrics")}
         logs = [row[0] for row in conn.execute("SELECT message FROM logs ORDER BY id DESC LIMIT 50")]
         metrics["recent_logs"] = logs[::-1]
         return metrics
 
 def add_log(msg: str):
-    with sqlite3.connect(DB_PATH) as conn:
+    with _get_db() as conn:
         conn.execute("INSERT INTO logs (message) VALUES (?)", (msg,))
 
 class SearchRequest(BaseModel):
@@ -71,7 +76,7 @@ async def get_metrics():
 @app.get("/api/tasks/{task_id}")
 async def get_task_status(task_id: str):
     import json
-    with sqlite3.connect(DB_PATH) as conn:
+    with _get_db() as conn:
         row = conn.execute("SELECT status, data FROM task_results WHERE task_id = ?", (task_id,)).fetchone()
         if not row:
             return JSONResponse({"status": "error", "message": "Task not found"}, status_code=404)
@@ -91,17 +96,17 @@ async def bg_search(task_id: str, req: SearchRequest):
         )
         update_metric("jobs_scanned", len(jobs))
         add_log(f"Found {len(jobs)} jobs for {req.query}")
-        with sqlite3.connect(DB_PATH) as conn:
+        with _get_db() as conn:
             conn.execute("UPDATE task_results SET status = 'success', data = ? WHERE task_id = ?", (json.dumps(jobs), task_id))
     except Exception as e:
         add_log(f"Error searching jobs: {str(e)}")
-        with sqlite3.connect(DB_PATH) as conn:
+        with _get_db() as conn:
             conn.execute("UPDATE task_results SET status = 'error', data = ? WHERE task_id = ?", (json.dumps({"message": str(e)}), task_id))
 
 @app.post("/api/search")
 async def api_search(req: SearchRequest, bg_tasks: BackgroundTasks):
     task_id = str(uuid.uuid4())
-    with sqlite3.connect(DB_PATH) as conn:
+    with _get_db() as conn:
         conn.execute("INSERT INTO task_results (task_id, status) VALUES (?, 'running')", (task_id,))
     bg_tasks.add_task(bg_search, task_id, req)
     return {"status": "accepted", "task_id": task_id}
@@ -114,17 +119,17 @@ async def bg_register(task_id: str, urls: list[str]):
         success_count = sum(1 for res in results.values() if res == "SUCCESS")
         update_metric("accounts_created", success_count)
         add_log(f"Registration completed. Success: {success_count}/{len(urls)}")
-        with sqlite3.connect(DB_PATH) as conn:
+        with _get_db() as conn:
             conn.execute("UPDATE task_results SET status = 'success', data = ? WHERE task_id = ?", (json.dumps(results), task_id))
     except Exception as e:
         add_log(f"Error in mass registration: {str(e)}")
-        with sqlite3.connect(DB_PATH) as conn:
+        with _get_db() as conn:
             conn.execute("UPDATE task_results SET status = 'error', data = ? WHERE task_id = ?", (json.dumps({"message": str(e)}), task_id))
 
 @app.post("/api/register")
 async def api_register(req: RegisterRequest, bg_tasks: BackgroundTasks):
     task_id = str(uuid.uuid4())
-    with sqlite3.connect(DB_PATH) as conn:
+    with _get_db() as conn:
         conn.execute("INSERT INTO task_results (task_id, status) VALUES (?, 'running')", (task_id,))
     bg_tasks.add_task(bg_register, task_id, req.urls)
     return {"status": "accepted", "task_id": task_id}
