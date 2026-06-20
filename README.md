@@ -4,7 +4,7 @@
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Tests](https://img.shields.io/badge/tests-176%20passing-success.svg)]()
 
-> **Última actualización**: 17 Junio 2026 — Pathwise Web UI Dashboard, Sincronización Pre-Vuelo (Profile Sync) e Intercepción IMAP.
+> **Última actualización**: 20 Junio 2026 — Rate Limiter Resiliency & PDF Generation Fixes.
 [![Lint](https://img.shields.io/badge/lint-ruff-passing-brightgreen.svg)]()
 
 Monorepo unificado con 11 servidores MCP (Model Context Protocol) + Herramientas avanzadas de carrera Pathwise (Dashboard Gráfico y CLI).
@@ -179,6 +179,10 @@ mcp-servers/
 ```
 
 ## Recent Improvements
+
+### 2026-06-20 — AI Rate Limiter Resiliency & Application Pipeline Fixes
+- **AI Provider Fallback Optimization**: Se parcheó `router/providers/base.py` para abortar proactivamente el proveedor de IA primario (como Groq) si devuelve una cabecera `Retry-After` irracional (por ejemplo, > 10 segundos). Esto evita que los procesos de postulación masiva se congelen durante decenas de minutos y obliga al `RouterEngine` a cambiar dinámicamente a modelos de *fallback* (como Gemini).
+- **Prevención de Crash por PDF (NoneType Decode)**: Se resolvió un error silencioso y destructivo (`AttributeError: 'NoneType' object has no attribute 'decode'`) que ocurría en `services/cv_service.py` cuando el proveedor de IA omitía generar alguna clave en el JSON de adaptación del CV. El motor `reportlab` ahora emplea validaciones *string-cast* seguras (`str(value or '')`) en toda la fase de renderizado vectorial.
 
 ### 2026-06-19 — Auditoría de Seguridad, Refactorización Asíncrona y Testing (199 Tests)
 - **Zero Vulnerabilidades Críticas**: Se solucionó un RCE (Remote Code Execution) mitigando el uso de `shell=True` en `local_agent.py` y se previnieron inyecciones SQL parametrizando los identificadores de tablas en `db_mcp/engine.py`.

@@ -214,18 +214,18 @@ async def tailor_cv_pdf(base_profile: dict, job_description: str, out_path: str 
     pi = tailored.get("personalInfo", {})
     
     c.setFont("Helvetica-Bold", 16)
-    name = f"{pi.get('firstName', '')} {pi.get('lastName', '')}"
+    name = f"{pi.get('firstName') or ''} {pi.get('lastName') or ''}"
     c.drawString(50, y, name)
     y -= 20
     
     c.setFont("Helvetica", 12)
-    c.drawString(50, y, pi.get("currentTitle", ""))
+    c.drawString(50, y, str(pi.get("currentTitle") or ""))
     y -= 20
-    c.drawString(50, y, f"{pi.get('email', '')} | {pi.get('phone', '')}")
+    c.drawString(50, y, f"{pi.get('email') or ''} | {pi.get('phone') or ''}")
     y -= 30
     
     c.setFont("Helvetica-Oblique", 10)
-    summary = pi.get("summary", "")
+    summary = str(pi.get("summary") or "")
     for line in [summary[i:i+90] for i in range(0, len(summary), 90)]:
         c.drawString(50, y, line)
         y -= 15
@@ -235,10 +235,12 @@ async def tailor_cv_pdf(base_profile: dict, job_description: str, out_path: str 
     c.drawString(50, y, "Experiencia")
     y -= 20
     c.setFont("Helvetica", 10)
-    for exp in tailored.get("experience", []):
-        c.drawString(50, y, f"{exp.get('title', '')} en {exp.get('company', '')}")
+    for exp in tailored.get("experience") or []:
+        title = str(exp.get('title') or '')
+        company = str(exp.get('company') or '')
+        c.drawString(50, y, f"{title} en {company}")
         y -= 15
-        desc = exp.get("description", "")
+        desc = str(exp.get("description") or "")
         for line in [desc[i:i+90] for i in range(0, len(desc), 90)]:
             c.drawString(60, y, "- " + line)
             y -= 15
@@ -251,7 +253,8 @@ async def tailor_cv_pdf(base_profile: dict, job_description: str, out_path: str 
     c.drawString(50, y, "Habilidades")
     y -= 20
     c.setFont("Helvetica", 10)
-    skills = ", ".join(tailored.get("skills", []))
+    skills_list = tailored.get("skills") or []
+    skills = ", ".join([str(s or '') for s in skills_list])
     for line in [skills[i:i+90] for i in range(0, len(skills), 90)]:
         c.drawString(50, y, line)
         y -= 15

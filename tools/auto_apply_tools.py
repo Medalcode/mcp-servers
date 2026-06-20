@@ -280,6 +280,13 @@ async def _batch_apply_one(url: str, profile: dict, tailored_cv_path: str = None
             elif state == ApplyState.CHECK_APPLY_BTN:
                 await _auto_click_apply()
                 page_text = await _call_browser_tool("run_script", {"script": "return document.body.innerText"})
+                
+                should, reason = await _should_apply((page_text or "")[:3000], profile)
+                if not should:
+                    result["error"] = f"Job rejected by AI: {reason}"
+                    state = ApplyState.END_FAIL
+                    continue
+                
                 if "postulaste correctamente" in (page_text or "").lower():
                     result["error"] = "already_applied"
                     result["success"] = True
