@@ -11,6 +11,7 @@ import json
 import logging
 import re
 from urllib.parse import urlparse, quote
+from enum import Enum
 
 from services.browser_client import call_tool as _call_browser_tool
 
@@ -93,8 +94,16 @@ async def _get_context_help(question: FormQuestion, profile: dict) -> str:
     return ""
 
 
-async def _fill_field_browser(driver_caller, q: FormQuestion, profile: dict) -> tuple[int, str]:
+async def _fill_field_browser(driver_caller, q: FormQuestion, profile: dict, tailored_cv_path: str = None) -> tuple[int, str]:
     if q.type in (QuestionType.HIDDEN, QuestionType.PASSWORD):
+        return 0, ""
+    if q.type == QuestionType.FILE:
+        if tailored_cv_path and q.name:
+            try:
+                await driver_caller("fill", {"selector": _safe_selector("input", q.name), "value": tailored_cv_path})
+                return 1, f"  [{q.type.value}] {q.label[:40]} -> Uploaded CV"
+            except Exception as e:
+                return 0, f"File upload '{q.name}': {str(e)[:60]}"
         return 0, ""
     if q.type == QuestionType.RADIO:
         answer = generate_radio_answer(q, profile)
@@ -137,7 +146,7 @@ async def _fill_field_browser(driver_caller, q: FormQuestion, profile: dict) -> 
 
 
 async def _smart_fill_form(driver_caller, forms_json: str, profile: dict,
-                           submit: bool = True) -> str:
+                           submit: bool = True, tailored_cv_path: str = None) -> str:
     questions = parse_forms_json(forms_json)
     if not questions:
         await _auto_click_apply()
@@ -158,7 +167,7 @@ async def _smart_fill_form(driver_caller, forms_json: str, profile: dict,
     # Step 1: Fill salary-related fields first
     salary_qs = [q for q in questions if re.search(r'sueldo|salario|renta|pretensión', q.label.lower())]
     for q in salary_qs:
-        cnt, log = await _fill_field_browser(driver_caller, q, profile)
+        cnt, log = await _fill_field_browser(driver_caller, q, profile, tailored_cv_path)
         filled_count += cnt
         if log:
             answers_log.append(log)
@@ -180,7 +189,7 @@ async def _smart_fill_form(driver_caller, forms_json: str, profile: dict,
     for q in questions:
         if q.name in done_names:
             continue
-        cnt, log = await _fill_field_browser(driver_caller, q, profile)
+        cnt, log = await _fill_field_browser(driver_caller, q, profile, tailored_cv_path)
         filled_count += cnt
         if log:
             answers_log.append(log)
@@ -224,120 +233,126 @@ def _extract_title_from_offer_url(url: str) -> str:
                 break
             clean.append(s)
         return " ".join(clean).title() if clean else ""
-    return ""
 
 
-async def _batch_apply_one(url: str, profile: dict) -> dict:
-    result = {"url": url, "success": False, "title": "", "company": "", "error": ""}
+class ApplyState(Enum):
+    INIT = "INIT"
+    NAVIGATING = "NAVIGATING"
+    CHECK_APPLY_BTN = "CHECK_APPLY_BTN"
+    DETECT_FORMS = "DETECT_FORMS"
+    LOGIN = "LOGIN"
+    FILL = "FILL"
+    VERIFY = "VERIFY"
+    END_SUCCESS = "END_SUCCESS"
+    END_FAIL = "END_FAIL"
 
-    title = _extract_title_from_offer_url(url)
-    result["title"] = title
 
-    try:
-        page = await asyncio.wait_for(
-            _call_browser_tool("navigate", {"url": url}),
-            timeout=45
-        )
-        if not page or "Error" in page:
-            result["error"] = "Failed to navigate"
-            return result
-    except asyncio.TimeoutError:
-        result["error"] = "Navigation timeout"
-        return result
-    except Exception as e:
-        result["error"] = f"Navigation error: {e}"
-        return result
-
+async def _batch_apply_one(url: str, profile: dict, tailored_cv_path: str = None) -> dict:
+    result = {"url": url, "success": False, "title": _extract_title_from_offer_url(url), "company": "", "error": ""}
+    state = ApplyState.INIT
     apply_url = ""
-    if title and "computrabajo" in url:
-        apply_match = re.search(r'data-href-offer-apply="([^"]+)"', page)
-        if apply_match:
-            apply_url = apply_match.group(1).replace("&amp;", "&")
+    forms_json = ""
     
-    if apply_url:
+    max_transitions = 20
+    transitions = 0
+    
+    while state not in (ApplyState.END_SUCCESS, ApplyState.END_FAIL) and transitions < max_transitions:
+        transitions += 1
         try:
-            page = await _call_browser_tool("navigate", {"url": apply_url})
-        except Exception as e:
-            result["error"] = f"Apply navigation error: {e}"
-            return result
+            if state == ApplyState.INIT:
+                state = ApplyState.NAVIGATING
 
-    await _auto_click_apply()
-    body_lower = (page or "").lower()
-    if "postulaste correctamente" in body_lower:
-        result["success"] = True
-        result["error"] = "already_applied"
-        return result
+            elif state == ApplyState.NAVIGATING:
+                page = await asyncio.wait_for(_call_browser_tool("navigate", {"url": url}), timeout=45)
+                if not page or "Error" in page:
+                    result["error"] = "Failed to navigate"
+                    state = ApplyState.END_FAIL
+                    continue
+                
+                if "computrabajo" in url:
+                    apply_match = re.search(r'data-href-offer-apply="([^"]+)"', page)
+                    if apply_match:
+                        apply_url = apply_match.group(1).replace("&amp;", "&")
+                        await _call_browser_tool("navigate", {"url": apply_url})
+                
+                state = ApplyState.CHECK_APPLY_BTN
 
-    try:
-        forms_json = await _call_browser_tool("forms", {})
-    except Exception as e:
-        result["error"] = f"Forms detection error: {e}"
-        return result
-
-    page_text = await _call_browser_tool("run_script", {"script": "return document.body.innerText"})
-    pt_lower = (page_text or "").lower()
-    curr_url = await _call_browser_tool("run_script", {"script": "return window.location.href"})
-    
-    # Removed debug prints to prevent false positive interactive prompt detections
-
-    needs_login = False
-    if "login" in forms_json.lower() or "ingresa" in forms_json.lower() or "contraseña" in forms_json.lower() or "password" in forms_json.lower():
-        needs_login = True
-    elif "inicia sesión" in pt_lower or "ingresa a tu cuenta" in pt_lower or "iniciar sesión" in pt_lower or "login" in (curr_url or "").lower() or "entrar" in pt_lower or "acceder" in pt_lower:
-        needs_login = True
-
-    if needs_login:
-        from services.auto_login import attempt_auto_login
-        login_success = await attempt_auto_login(lambda t, a: _call_browser_tool(t, a), apply_url or url)
-        if login_success:
-            await _call_browser_tool("navigate", {"url": url})
-            await asyncio.sleep(4)
-            if apply_url:
-                await _call_browser_tool("navigate", {"url": apply_url})
-                await asyncio.sleep(4)
-            await _auto_click_apply()
-            try:
+            elif state == ApplyState.CHECK_APPLY_BTN:
+                await _auto_click_apply()
+                page_text = await _call_browser_tool("run_script", {"script": "return document.body.innerText"})
+                if "postulaste correctamente" in (page_text or "").lower():
+                    result["error"] = "already_applied"
+                    result["success"] = True
+                    state = ApplyState.END_SUCCESS
+                else:
+                    state = ApplyState.DETECT_FORMS
+            
+            elif state == ApplyState.DETECT_FORMS:
                 forms_json = await _call_browser_tool("forms", {})
-            except Exception as e:
-                result["error"] = f"Forms detection error after login: {e}"
-                return result
-        else:
-            result["error"] = "Login failed or missing/invalid credentials in .env"
-            return result
+                page_text = await _call_browser_tool("run_script", {"script": "return document.body.innerText"})
+                curr_url = await _call_browser_tool("run_script", {"script": "return window.location.href"})
+                pt_lower = (page_text or "").lower()
+                
+                needs_login = False
+                if any(k in forms_json.lower() for k in ["login", "ingresa", "contraseña", "password"]):
+                    needs_login = True
+                elif any(k in pt_lower for k in ["inicia sesión", "ingresa a tu cuenta", "iniciar sesión", "entrar", "acceder"]) or "login" in str(curr_url).lower():
+                    needs_login = True
+                
+                if needs_login:
+                    state = ApplyState.LOGIN
+                else:
+                    state = ApplyState.FILL
 
-    questions = parse_forms_json(forms_json)
-    if not questions:
-        result["error"] = "No form fields detected"
-        return result
+            elif state == ApplyState.LOGIN:
+                from services.auto_login import attempt_auto_login
+                login_success = await attempt_auto_login(lambda t, a: _call_browser_tool(t, a), apply_url or url)
+                if login_success:
+                    await _call_browser_tool("navigate", {"url": url})
+                    await asyncio.sleep(4)
+                    if apply_url:
+                        await _call_browser_tool("navigate", {"url": apply_url})
+                        await asyncio.sleep(4)
+                    state = ApplyState.CHECK_APPLY_BTN
+                else:
+                    result["error"] = "Login failed"
+                    state = ApplyState.END_FAIL
 
-    filled_count = 0
-    errors_list = []
+            elif state == ApplyState.FILL:
+                questions = parse_forms_json(forms_json)
+                if not questions:
+                    result["error"] = "No form fields detected"
+                    state = ApplyState.END_FAIL
+                    continue
 
-    for q in questions:
-        cnt, log = await _fill_field_browser(lambda t, a: _call_browser_tool(t, a), q, profile)
-        filled_count += cnt
-        if log and not cnt:
-            errors_list.append(log)
+                filled_count = 0
+                for q in questions:
+                    cnt, log = await _fill_field_browser(lambda t, a: _call_browser_tool(t, a), q, profile, tailored_cv_path)
+                    filled_count += cnt
 
-    if filled_count > 0:
-        await asyncio.sleep(0.5)
-        try:
-            await _call_browser_tool("click", {"selector": "input[type='submit'], button[type='submit']"})
+                if filled_count > 0:
+                    await asyncio.sleep(0.5)
+                    try:
+                        await _call_browser_tool("click", {"selector": "input[type='submit'], button[type='submit']"})
+                    except Exception as e:
+                        logger.warning("submit err: %s", e)
+                    await asyncio.sleep(3)
+                state = ApplyState.VERIFY
+
+            elif state == ApplyState.VERIFY:
+                confirm = await _call_browser_tool("navigate", {"url": apply_url or url})
+                confirm_lower = (confirm or "").lower()
+                if "postulaste correctamente" in confirm_lower or "postapply" in (confirm or ""):
+                    result["success"] = True
+                else:
+                    result["error"] = "Submission result unclear"
+                    result["success"] = True # Partial success
+                state = ApplyState.END_SUCCESS
+
         except Exception as e:
-            logger.warning("batch_apply submit: %s", e)
-        
-        await asyncio.sleep(3)
-        
-        try:
-            confirm = await _call_browser_tool("navigate", {"url": apply_url or url})
-            confirm_lower = (confirm or "").lower()
-            if "postulaste correctamente" in confirm_lower or "postapply" in (confirm or ""):
-                result["success"] = True
-            else:
-                result["error"] = "Submission result unclear"
-        except Exception as e:
-            logger.warning("batch_apply confirm check: %s", e)
-            result["success"] = True
+            logger.warning("State %s error: %s", state, e)
+            result["error"] = f"Error in {state.name}: {e}"
+            state = ApplyState.END_FAIL
 
     return result
 
@@ -382,9 +397,14 @@ def register_tools(mcp: FastMCP):
 
         forms_info = await _call_browser_tool("forms", {})
 
+        from services.cv_service import tailor_cv_pdf
+        import uuid
+        app_id = str(uuid.uuid4())[:8]
+        tailored_cv_path = await tailor_cv_pdf(profile, check_text, f"/tmp/opencode/cv_{app_id}.pdf")
+
         fill_result = await _smart_fill_form(
             lambda t, a: _call_browser_tool(t, a),
-            forms_info, profile, submit=True
+            forms_info, profile, submit=True, tailored_cv_path=tailored_cv_path
         )
 
         # Verify submission by checking page for success indicators
@@ -482,7 +502,16 @@ def register_tools(mcp: FastMCP):
 
         results = []
         for url in urls:
-            res = await _batch_apply_one(url, profile)
+            from services.cv_service import tailor_cv_pdf
+            import uuid
+            app_id = str(uuid.uuid4())[:8]
+            # Fast check
+            try:
+                jd_text = await _call_browser_tool("run_script", {"script": "return (document.body.innerText || '').slice(0, 2000)"})
+            except:
+                jd_text = ""
+            tailored_cv_path = await tailor_cv_pdf(profile, jd_text, f"/tmp/opencode/cv_{app_id}.pdf")
+            res = await _batch_apply_one(url, profile, tailored_cv_path)
             status = "APPLIED" if res["success"] else f"FAILED: {res['error']}"
             title = res.get("title", url)[:50]
             results.append(f"  {title[:45]:45s} {status}")

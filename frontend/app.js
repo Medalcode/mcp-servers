@@ -12,8 +12,34 @@ function switchSection(sectionId) {
     document.getElementById(`section-${sectionId}`).classList.remove('hidden');
 }
 
+// WebSocket for Real-Time Logs
+const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+const wsUrl = `${wsProtocol}//${window.location.host}/ws/logs`;
+let ws;
+
+function connectWebSocket() {
+    ws = new WebSocket(wsUrl);
+    ws.onmessage = function(event) {
+        const log = event.data;
+        const isError = log.toLowerCase().includes('error') || log.toLowerCase().includes('fail');
+        const isSuccess = log.toLowerCase().includes('success') || log.toLowerCase().includes('found') || log.toLowerCase().includes('exitos');
+        const typeClass = isError ? 'error' : isSuccess ? 'success' : 'info';
+        
+        const consoleBox = document.getElementById('console-output');
+        const div = document.createElement('div');
+        div.className = `log-line ${typeClass}`;
+        div.innerText = `> ${log}`;
+        consoleBox.appendChild(div);
+        consoleBox.scrollTop = consoleBox.scrollHeight;
+    };
+    ws.onclose = function(e) {
+        setTimeout(connectWebSocket, 5000);
+    };
+}
+connectWebSocket();
+
 // Console & Metrics Updater
-let lastLogCount = 0;
+let isFirstLoad = true;
 
 async function fetchMetrics() {
     try {
@@ -25,13 +51,12 @@ async function fetchMetrics() {
         document.getElementById('m-logins').innerText = data.successful_logins;
         document.getElementById('m-applications').innerText = data.applications_sent;
         
-        // Update console
+        // Load initial history on first load
         const consoleBox = document.getElementById('console-output');
-        if (data.recent_logs.length > lastLogCount) {
-            const newLogs = data.recent_logs.slice(lastLogCount);
-            newLogs.forEach(log => {
+        if (isFirstLoad && data.recent_logs && data.recent_logs.length > 0) {
+            data.recent_logs.forEach(log => {
                 const isError = log.toLowerCase().includes('error') || log.toLowerCase().includes('fail');
-                const isSuccess = log.toLowerCase().includes('success') || log.toLowerCase().includes('found');
+                const isSuccess = log.toLowerCase().includes('success') || log.toLowerCase().includes('found') || log.toLowerCase().includes('exitos');
                 const typeClass = isError ? 'error' : isSuccess ? 'success' : 'info';
                 
                 const div = document.createElement('div');
@@ -40,7 +65,7 @@ async function fetchMetrics() {
                 consoleBox.appendChild(div);
             });
             consoleBox.scrollTop = consoleBox.scrollHeight;
-            lastLogCount = data.recent_logs.length;
+            isFirstLoad = false;
         }
     } catch(e) {
         console.error("Error fetching metrics", e);

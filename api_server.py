@@ -1,7 +1,7 @@
 import asyncio
 import sqlite3
 import uuid
-from fastapi import FastAPI, BackgroundTasks
+from fastapi import FastAPI, BackgroundTasks, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -13,6 +13,27 @@ load_dotenv()
 from services.job_service import search_jobs_with_ai, mass_register_sf
 
 app = FastAPI(title="Pathwise UI Dashboard")
+
+class ConnectionManager:
+    def __init__(self):
+        self.active_connections: list[WebSocket] = []
+
+    async def connect(self, websocket: WebSocket):
+        await websocket.accept()
+        self.active_connections.append(websocket)
+
+    def disconnect(self, websocket: WebSocket):
+        self.active_connections.remove(websocket)
+
+    def broadcast(self, message: str):
+        try:
+            loop = asyncio.get_running_loop()
+            for connection in self.active_connections:
+                loop.create_task(connection.send_text(message))
+        except RuntimeError:
+            pass
+
+manager = ConnectionManager()
 
 DB_PATH = "metrics.db"
 
@@ -56,6 +77,7 @@ def get_metrics_dict():
 def add_log(msg: str):
     with _get_db() as conn:
         conn.execute("INSERT INTO logs (message) VALUES (?)", (msg,))
+    manager.broadcast(msg)
 
 class SearchRequest(BaseModel):
     query: str
@@ -72,6 +94,15 @@ class ApplyRequest(BaseModel):
 @app.get("/api/metrics")
 async def get_metrics():
     return JSONResponse(get_metrics_dict())
+
+@app.websocket("/ws/logs")
+async def websocket_logs(websocket: WebSocket):
+    await manager.connect(websocket)
+    try:
+        while True:
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        manager.disconnect(websocket)
 
 @app.get("/api/tasks/{task_id}")
 async def get_task_status(task_id: str):

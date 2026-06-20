@@ -171,3 +171,90 @@ def parse_cv_text(text: str) -> dict:
                 data["skills"].append(skill)
 
     return data
+
+async def tailor_cv_pdf(base_profile: dict, job_description: str, out_path: str = "/tmp/opencode/tailored_cv.pdf") -> str:
+    from services.ai_provider import _call_ai, _clean_json
+    import json
+    import os
+    
+    prompt = f"""Reescribe este CV para que haga "match" perfecto con la oferta laboral. Mantén la verdad pero resalta las keywords relevantes.
+    PERFIL BASE:
+    {json.dumps(base_profile, ensure_ascii=False)}
+    OFERTA:
+    {job_description[:2000]}
+    
+    Devuelve ÚNICAMENTE un JSON con este formato:
+    {{
+        "personalInfo": {{"firstName": "", "lastName": "", "currentTitle": "", "email": "", "phone": "", "summary": ""}},
+        "experience": [{{"title": "", "company": "", "description": ""}}],
+        "education": [{{"degree": "", "school": ""}}],
+        "skills": ["skill1", "skill2"]
+    }}
+    """
+    try:
+        res = await _call_ai(prompt)
+        tailored = json.loads(_clean_json(res))
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning("AI Tailoring failed: %s", e)
+        tailored = base_profile
+        
+    try:
+        from reportlab.lib.pagesizes import letter
+        from reportlab.pdfgen import canvas
+    except ImportError:
+        import logging
+        logging.getLogger(__name__).error("reportlab is not installed. Returning original path or None.")
+        return ""
+        
+    os.makedirs(os.path.dirname(out_path), exist_ok=True)
+    
+    c = canvas.Canvas(out_path, pagesize=letter)
+    y = 750
+    pi = tailored.get("personalInfo", {})
+    
+    c.setFont("Helvetica-Bold", 16)
+    name = f"{pi.get('firstName', '')} {pi.get('lastName', '')}"
+    c.drawString(50, y, name)
+    y -= 20
+    
+    c.setFont("Helvetica", 12)
+    c.drawString(50, y, pi.get("currentTitle", ""))
+    y -= 20
+    c.drawString(50, y, f"{pi.get('email', '')} | {pi.get('phone', '')}")
+    y -= 30
+    
+    c.setFont("Helvetica-Oblique", 10)
+    summary = pi.get("summary", "")
+    for line in [summary[i:i+90] for i in range(0, len(summary), 90)]:
+        c.drawString(50, y, line)
+        y -= 15
+    y -= 20
+    
+    c.setFont("Helvetica-Bold", 12)
+    c.drawString(50, y, "Experiencia")
+    y -= 20
+    c.setFont("Helvetica", 10)
+    for exp in tailored.get("experience", []):
+        c.drawString(50, y, f"{exp.get('title', '')} en {exp.get('company', '')}")
+        y -= 15
+        desc = exp.get("description", "")
+        for line in [desc[i:i+90] for i in range(0, len(desc), 90)]:
+            c.drawString(60, y, "- " + line)
+            y -= 15
+        y -= 10
+        if y < 100:
+            c.showPage()
+            y = 750
+            
+    c.setFont("Helvetica-Bold", 12)
+    c.drawString(50, y, "Habilidades")
+    y -= 20
+    c.setFont("Helvetica", 10)
+    skills = ", ".join(tailored.get("skills", []))
+    for line in [skills[i:i+90] for i in range(0, len(skills), 90)]:
+        c.drawString(50, y, line)
+        y -= 15
+        
+    c.save()
+    return out_path
