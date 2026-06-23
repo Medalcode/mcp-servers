@@ -19,21 +19,19 @@ def _get_engine() -> RouterEngine:
 
 async def _call_ai(prompt: str, model: str = None) -> str:
     engine = _get_engine()
-    model_id = model or AI_MODEL
+    
+    # Read dynamically so changes in os.environ apply immediately
+    current_model = model or os.getenv("AI_MODEL", "llama-3.3-70b")
+    current_temp = float(os.getenv("AI_TEMPERATURE", "0.3"))
+    
     try:
-        result = await engine.ask(model_id, prompt, temperature=AI_TEMPERATURE)
-        return result
+        if model or os.getenv("AI_MODEL"):
+            return await engine.ask(current_model, prompt, temperature=current_temp)
+        else:
+            # Leverage the built-in intelligent router with fallbacks
+            return await engine.route(prompt)
     except ProviderError as e:
-        logger.warning("Primary model %s failed: %s. Trying fallback...", model_id, e)
-        fallbacks = ["gemini-2.0-flash", "llama-3.3-70b", "llama-3.1-8b"]
-        for fb in fallbacks:
-            if fb == model_id:
-                continue
-            try:
-                result = await engine.ask(fb, prompt, temperature=AI_TEMPERATURE)
-                return result
-            except ProviderError:
-                continue
+        logger.error("All AI providers failed: %s", e)
         raise RuntimeError(f"All AI providers failed for prompt: {e}")
 
 def _clean_json(text: str) -> str:

@@ -57,9 +57,15 @@ async def _should_apply(page_text: str, profile: dict) -> tuple[bool, str]:
 
     msg = {
         "role": "system",
-        "content": "Eres un asesor de postulaciones. Responde solo con JSON.",
-        "instruction": "Dado el perfil del usuario y la descripcion de la oferta, determina si DEBE postular o NO.",
-        "context": "El usuario esta abierto a cualquier modalidad (presencial, hibrido o remoto).",
+        "content": "Eres un asistente de postulaciones muy optimista. Tu objetivo es postular al usuario a la mayor cantidad de ofertas posibles. Responde SOLO con JSON.",
+        "instruction": "Determina si el usuario DEBE postular. APLICA a menos que la oferta requiera EXPLÍCITAMENTE una profesión totalmente distinta (ej: Medicina, Minería Pesada, Leyes, Ventas Retail, Comida Rápida).",
+        "rules": [
+            "Si la oferta es de TI, Software, Datos, Soporte o Tecnología -> apply: true",
+            "Si la oferta no tiene suficiente información o es muy corta -> apply: true",
+            "Si la oferta es genérica (ej. 'Trainee', 'Práctica') sin especificar área -> apply: true",
+            "Si el usuario no cumple todos los requisitos pero es del área de TI -> apply: true",
+            "Solo rechaza (apply: false) si claramente pide algo como 'Ingeniero Civil en Obras', 'Médico', 'Mecánico', 'Vendedor de tienda', etc."
+        ],
         "profile": {
             "level": f"Estudiante/practica/junior (en curso: {current_edu})",
             "skills": skills_str,
@@ -68,7 +74,7 @@ async def _should_apply(page_text: str, profile: dict) -> tuple[bool, str]:
         "offer_text": text_snippet
     }
     prompt = json.dumps(msg, ensure_ascii=False)
-    prompt = f"Analiza esta oferta de trabajo:\n{prompt}\n\nSi el texto extraído de la página no contiene suficiente información sobre el puesto (menos de 200 caracteres relevantes), responde SOLO con JSON: {{\"apply\": true, \"reason\": \"No hay suficiente texto para evaluar, se procede con postulación\"}}. Si hay suficiente información, responde SOLO con JSON: {{\"apply\": true/false, \"reason\": \"explicacion corta en espanol\"}}"
+    prompt = f"Analiza esta oferta de trabajo y decide si postular:\n{prompt}\n\nResponde SOLO con un JSON válido con este formato exacto:\n{{\"apply\": true/false, \"reason\": \"explicacion corta de maximo 10 palabras\"}}"
 
     try:
         result = await _call_ai(prompt[:3000])
@@ -278,7 +284,8 @@ async def _batch_apply_one(url: str, profile: dict, tailored_cv_path: str = None
                 state = ApplyState.CHECK_APPLY_BTN
 
             elif state == ApplyState.CHECK_APPLY_BTN:
-                await _auto_click_apply()
+                # IMPORTANT: Read the job description BEFORE clicking Apply, 
+                # because clicking Apply might redirect to a login screen.
                 page_text = await _call_browser_tool("run_script", {"script": "return document.body.innerText"})
                 
                 should, reason = await _should_apply((page_text or "")[:3000], profile)
@@ -291,8 +298,12 @@ async def _batch_apply_one(url: str, profile: dict, tailored_cv_path: str = None
                     result["error"] = "already_applied"
                     result["success"] = True
                     state = ApplyState.END_SUCCESS
-                else:
-                    state = ApplyState.DETECT_FORMS
+                    continue
+
+                # Now that AI approved, click apply
+                await _auto_click_apply()
+                
+                state = ApplyState.DETECT_FORMS
             
             elif state == ApplyState.DETECT_FORMS:
                 forms_json = await _call_browser_tool("forms", {})

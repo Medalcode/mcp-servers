@@ -13,47 +13,52 @@ USER_AGENTS = [
 
 
 async def scan_trabajando(query: str, location: str = "Chile", filters: dict = None) -> list:
+    import asyncio
+    import json
+    from services.browser_client import call_tool
+    
     params = {"q": query, "l": location}
-    url = f"https://www.trabajando.com/cl/ofertas-de-trabajo?{urllib.parse.urlencode(params)}"
-    headers = {"User-Agent": random.choice(USER_AGENTS), "Accept": "text/html"}
-
+    url = f"https://www.trabajando.cl/trabajo-empleo/?{urllib.parse.urlencode(params)}"
+    
     try:
-        async with httpx.AsyncClient(timeout=15, follow_redirects=True) as client:
-            resp = await client.get(url, headers=headers)
-            resp.raise_for_status()
+        await call_tool("navigate", {"url": url})
+        await asyncio.sleep(4)
+        
+        script = """
+        const jobs = [];
+        const cards = document.querySelectorAll('article.oferta, div.oferta, div[class*=oferta], div.job-item, tr.oferta');
+        for (const card of cards) {
+            const titleEl = card.querySelector('h2 a, h3 a, a[href*="/oferta/"]');
+            if (!titleEl) continue;
+            const title = titleEl.innerText.trim();
+            let url_rel = titleEl.getAttribute('href') || '';
+            const job_url = url_rel.startsWith('http') ? url_rel : `https://www.trabajando.cl${url_rel}`;
+            
+            const companyEl = card.querySelector('.empresa, .company, [class*=empresa]');
+            const company = companyEl ? companyEl.innerText.trim() : 'Confidencial';
+            
+            const locEl = card.querySelector('.ubicacion, .location, [class*=ubicacion]');
+            const loc = locEl ? locEl.innerText.trim() : '';
+            
+            const descEl = card.querySelector('.descripcion, .description, .resumen, p');
+            const desc = descEl ? descEl.innerText.trim() : '';
+            
+            jobs.push({ title, company, location: loc, url: job_url, description: desc.substring(0, 500), source: 'Trabajando.cl' });
+        }
+        return JSON.stringify(jobs);
+        """
+        
+        res = await call_tool("run_script", {"script": script})
+        
+        # Parse the output from Browser MCP
+        if "---" in res:
+            json_str = res.split("---")[-1].strip()
+        else:
+            json_str = res.replace("[Engine: selenium]", "").strip()
+            
+        jobs = json.loads(json_str)
+        return jobs
+        
     except Exception as e:
-        logger.warning("Trabajando request failed: %s", e)
+        logger.warning("Trabajando browser request failed: %s", e)
         return []
-
-    soup = BeautifulSoup(resp.text, "lxml")
-    jobs = []
-
-    for card in soup.select("article.oferta, div.oferta, div[class*=oferta], div.job-item, tr.oferta"):
-        try:
-            title_el = card.select_one("h2 a, h3 a, a[href*='/oferta/']")
-            if not title_el:
-                continue
-            title = title_el.get_text(strip=True)
-            url_rel = title_el.get("href", "")
-            job_url = url_rel if url_rel.startswith("http") else f"https://www.trabajando.cl{url_rel}"
-
-            company = card.select_one(".empresa, .company, [class*=empresa]")
-            company = company.get_text(strip=True) if company else "Confidencial"
-
-            loc = card.select_one(".ubicacion, .location, [class*=ubicacion]")
-            loc = loc.get_text(strip=True) if loc else location
-
-            desc = card.select_one(".descripcion, .description, .resumen, p")
-            desc = desc.get_text(strip=True) if desc else ""
-
-            if title:
-                jobs.append({
-                    "title": title, "company": company, "location": loc,
-                    "url": job_url, "description": desc[:500],
-                    "source": "Trabajando.cl",
-                })
-        except Exception as e:
-            logger.warning("Trabajando parse error: %s", e)
-            continue
-
-    return jobs

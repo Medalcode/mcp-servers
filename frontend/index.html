@@ -48,24 +48,73 @@
         <main class="main-content">
             <header class="topbar">
                 <h1>Panel de Control</h1>
-                <div class="user-profile">
-                    <img src="https://ui-avatars.com/api/?name=Jonatthan+Medalla&background=7A28CB&color=fff" alt="User">
+                <div class="topbar-actions" style="display: flex; align-items: center; gap: 1rem;">
+                    <div class="model-selector">
+                        <select id="ai-model-select" style="padding: 0.5rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.2); color: #fff; min-width: 150px;">
+                            <option value="">Cargando modelos...</option>
+                        </select>
+                    </div>
+                    <div class="user-profile">
+                        <img src="https://ui-avatars.com/api/?name=Jonatthan+Medalla&background=7A28CB&color=fff" alt="User">
+                    </div>
                 </div>
             </header>
 
             <!-- Actions Panel -->
-            <section class="actions-panel glass">
+            <section class="actions-panel glass" style="position: relative; z-index: 9999;">
                 <div class="action-section" id="section-search">
                     <h2>Escáner de Empleos</h2>
                     <p>Busca oportunidades en todos los portales soportados simultáneamente.</p>
-                    <div class="form-row" style="display: flex; gap: 1rem; margin-top: 1rem; flex-wrap: wrap;">
+                    <div class="form-row" style="display: flex; gap: 1rem; margin-top: 1rem; flex-wrap: wrap; position: relative; z-index: 9999;">
                         <div class="form-group" style="flex: 2; min-width: 200px;">
                             <label>Rol / Cargo</label>
-                            <input type="text" id="search-query" placeholder="Ej: Python Developer" value="Python Developer" style="width: 100%;">
+                            <input type="text" id="search-query" placeholder="Ej: Python Developer" value="" style="width: 100%;">
                         </div>
                         <div class="form-group" style="flex: 1; min-width: 150px;">
                             <label>Ubicación</label>
-                            <input type="text" id="search-location" placeholder="Ubicación" value="Chile" style="width: 100%;">
+                            <input type="text" id="search-location" placeholder="Ubicación" value="" style="width: 100%;">
+                        </div>
+                        <div class="form-group" style="flex: 1; min-width: 150px; position: relative; z-index: 1000;">
+                            <label>Portales / Scrapers</label>
+                            <div class="custom-select" style="width: 100%; padding: 0.8rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.2); color: #fff; cursor: pointer; user-select: none;" onclick="document.getElementById('scraper-options').classList.toggle('hidden')">
+                                Seleccionar Portales ▼
+                            </div>
+                            <div id="scraper-options" class="hidden" style="position: absolute; top: 100%; left: 0; right: 0; background: #1a1a1a; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; z-index: 100; max-height: 250px; overflow-y: auto; padding: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem; box-shadow: 0 4px 15px rgba(0,0,0,0.5);">
+                                <label style="display: flex; gap: 0.5rem; cursor: pointer; padding: 0.2rem;"><input type="checkbox" value="all" class="scraper-cb" checked onchange="document.querySelectorAll('.scraper-cb:not([value=all])').forEach(cb => cb.checked = false)"> <strong>Todos (Auto)</strong></label>
+                                <label style="display: flex; gap: 0.5rem; cursor: pointer; padding: 0.2rem;"><input type="checkbox" value="ChileTrabajos" class="scraper-cb" onchange="document.querySelector('.scraper-cb[value=all]').checked = false"> ChileTrabajos</label>
+                                <label style="display: flex; gap: 0.5rem; cursor: pointer; padding: 0.2rem;"><input type="checkbox" value="CompuTrabajo" class="scraper-cb" onchange="document.querySelector('.scraper-cb[value=all]').checked = false"> CompuTrabajo</label>
+                                <label style="display: flex; gap: 0.5rem; cursor: pointer; padding: 0.2rem;"><input type="checkbox" value="Laborum" class="scraper-cb" onchange="document.querySelector('.scraper-cb[value=all]').checked = false"> Laborum</label>
+                                <label style="display: flex; gap: 0.5rem; cursor: pointer; padding: 0.2rem;"><input type="checkbox" value="GetOnBoard" class="scraper-cb" onchange="document.querySelector('.scraper-cb[value=all]').checked = false"> GetOnBoard</label>
+                                <label style="display: flex; gap: 0.5rem; cursor: pointer; padding: 0.2rem;"><input type="checkbox" value="RemoteOK" class="scraper-cb" onchange="document.querySelector('.scraper-cb[value=all]').checked = false"> RemoteOK</label>
+                                <label style="display: flex; gap: 0.5rem; cursor: pointer; padding: 0.2rem;"><input type="checkbox" value="FirstJob" class="scraper-cb" onchange="document.querySelector('.scraper-cb[value=all]').checked = false"> FirstJob</label>
+                                <label style="display: flex; gap: 0.5rem; cursor: pointer; padding: 0.2rem;"><input type="checkbox" value="Indeed" class="scraper-cb" onchange="document.querySelector('.scraper-cb[value=all]').checked = false"> Indeed</label>
+                                <label style="display: flex; gap: 0.5rem; cursor: pointer; padding: 0.2rem;"><input type="checkbox" value="Trabajando" class="scraper-cb" onchange="document.querySelector('.scraper-cb[value=all]').checked = false"> Trabajando</label>
+                                <label style="display: flex; gap: 0.5rem; cursor: pointer; padding: 0.2rem;"><input type="checkbox" value="Randstad" class="scraper-cb" onchange="document.querySelector('.scraper-cb[value=all]').checked = false"> Randstad</label>
+                                <label style="display: flex; gap: 0.5rem; cursor: pointer; padding: 0.2rem;"><input type="checkbox" value="BeBee" class="scraper-cb" onchange="document.querySelector('.scraper-cb[value=all]').checked = false"> BeBee</label>
+                                <label style="display: flex; gap: 0.5rem; cursor: pointer; padding: 0.2rem;"><input type="checkbox" value="Sonda" class="scraper-cb" onchange="document.querySelector('.scraper-cb[value=all]').checked = false"> Sonda</label>
+                                <label style="display: flex; gap: 0.5rem; cursor: pointer; padding: 0.2rem;"><input type="checkbox" value="BHP" class="scraper-cb" onchange="document.querySelector('.scraper-cb[value=all]').checked = false"> BHP</label>
+                                <label style="display: flex; gap: 0.5rem; cursor: pointer; padding: 0.2rem;"><input type="checkbox" value="Codelco" class="scraper-cb" onchange="document.querySelector('.scraper-cb[value=all]').checked = false"> Codelco</label>
+                                <label style="display: flex; gap: 0.5rem; cursor: pointer; padding: 0.2rem;"><input type="checkbox" value="Freeport" class="scraper-cb" onchange="document.querySelector('.scraper-cb[value=all]').checked = false"> Freeport</label>
+                                <label style="display: flex; gap: 0.5rem; cursor: pointer; padding: 0.2rem;"><input type="checkbox" value="Teck" class="scraper-cb" onchange="document.querySelector('.scraper-cb[value=all]').checked = false"> Teck</label>
+                                <label style="display: flex; gap: 0.5rem; cursor: pointer; padding: 0.2rem;"><input type="checkbox" value="Lundin" class="scraper-cb" onchange="document.querySelector('.scraper-cb[value=all]').checked = false"> Lundin</label>
+                                <label style="display: flex; gap: 0.5rem; cursor: pointer; padding: 0.2rem;"><input type="checkbox" value="Glencore" class="scraper-cb" onchange="document.querySelector('.scraper-cb[value=all]').checked = false"> Glencore</label>
+                                <label style="display: flex; gap: 0.5rem; cursor: pointer; padding: 0.2rem;"><input type="checkbox" value="IBM" class="scraper-cb" onchange="document.querySelector('.scraper-cb[value=all]').checked = false"> IBM</label>
+                                <label style="display: flex; gap: 0.5rem; cursor: pointer; padding: 0.2rem;"><input type="checkbox" value="Microsoft" class="scraper-cb" onchange="document.querySelector('.scraper-cb[value=all]').checked = false"> Microsoft</label>
+                                <label style="display: flex; gap: 0.5rem; cursor: pointer; padding: 0.2rem;"><input type="checkbox" value="Nestlé" class="scraper-cb" onchange="document.querySelector('.scraper-cb[value=all]').checked = false"> Nestlé</label>
+                                <label style="display: flex; gap: 0.5rem; cursor: pointer; padding: 0.2rem;"><input type="checkbox" value="Coca-Cola" class="scraper-cb" onchange="document.querySelector('.scraper-cb[value=all]').checked = false"> Coca-Cola</label>
+                                <label style="display: flex; gap: 0.5rem; cursor: pointer; padding: 0.2rem;"><input type="checkbox" value="PepsiCo" class="scraper-cb" onchange="document.querySelector('.scraper-cb[value=all]').checked = false"> PepsiCo</label>
+                                <label style="display: flex; gap: 0.5rem; cursor: pointer; padding: 0.2rem;"><input type="checkbox" value="SAP" class="scraper-cb" onchange="document.querySelector('.scraper-cb[value=all]').checked = false"> SAP</label>
+                                <label style="display: flex; gap: 0.5rem; cursor: pointer; padding: 0.2rem;"><input type="checkbox" value="Cencosud" class="scraper-cb" onchange="document.querySelector('.scraper-cb[value=all]').checked = false"> Cencosud</label>
+                                <label style="display: flex; gap: 0.5rem; cursor: pointer; padding: 0.2rem;"><input type="checkbox" value="Falabella" class="scraper-cb" onchange="document.querySelector('.scraper-cb[value=all]').checked = false"> Falabella</label>
+                                <label style="display: flex; gap: 0.5rem; cursor: pointer; padding: 0.2rem;"><input type="checkbox" value="Latam Airlines" class="scraper-cb" onchange="document.querySelector('.scraper-cb[value=all]').checked = false"> Latam Airlines</label>
+                                <label style="display: flex; gap: 0.5rem; cursor: pointer; padding: 0.2rem;"><input type="checkbox" value="Entel" class="scraper-cb" onchange="document.querySelector('.scraper-cb[value=all]').checked = false"> Entel</label>
+                                <label style="display: flex; gap: 0.5rem; cursor: pointer; padding: 0.2rem;"><input type="checkbox" value="Banco BCI" class="scraper-cb" onchange="document.querySelector('.scraper-cb[value=all]').checked = false"> Banco BCI</label>
+                                <label style="display: flex; gap: 0.5rem; cursor: pointer; padding: 0.2rem;"><input type="checkbox" value="LinkedIn" class="scraper-cb" onchange="document.querySelector('.scraper-cb[value=all]').checked = false"> LinkedIn</label>
+                            </div>
+                        </div>
+                        <div class="form-group" style="flex: 1; min-width: 150px;">
+                            <label>Excluir (Opcional)</label>
+                            <input type="text" id="search-exclude" placeholder="Ej: senior, react" style="width: 100%;">
                         </div>
                         <div class="form-group" style="flex: 1; min-width: 150px;">
                             <label>Fecha</label>
@@ -100,6 +149,26 @@
                         <textarea id="input-urls" rows="3" placeholder="https://careers.ibm.com/, https://oportunidades.cencosud.com/"></textarea>
                         <button class="btn-primary" onclick="startRegister()">
                             <i class="fa-solid fa-play"></i> Iniciar Registro
+                        </button>
+                    </div>
+                </div>
+
+                <div class="action-section hidden" id="section-apply">
+                    <h2>Auto Apply Masivo</h2>
+                    <p>Introduce las palabras clave separadas por comas. El sistema buscará, filtrará con IA y postulará automáticamente adaptando el CV.</p>
+                    <div class="form-row" style="display: flex; gap: 1rem; margin-top: 1rem; flex-wrap: wrap;">
+                        <div class="form-group" style="flex: 2; min-width: 250px;">
+                            <label>Términos de Búsqueda</label>
+                            <input type="text" id="apply-queries" placeholder="Ej: trainee, desarrollador junior, internship" value="trainee, desarrollador junior, internship" style="width: 100%;">
+                        </div>
+                        <div class="form-group" style="flex: 1; min-width: 150px;">
+                            <label>Límite de Ofertas a Postular</label>
+                            <input type="number" id="apply-limit" value="50" min="1" max="200" style="width: 100%;">
+                        </div>
+                    </div>
+                    <div style="margin-top: 1rem;">
+                        <button class="btn-primary" onclick="startBatchApply()">
+                            <i class="fa-solid fa-rocket"></i> Iniciar Auto Apply
                         </button>
                     </div>
                 </div>
@@ -138,7 +207,10 @@
                 <section class="console-view glass">
                     <div class="section-header">
                         <h2>Terminal de Operaciones</h2>
-                        <div class="status-indicator active"></div>
+                        <div style="display: flex; gap: 10px; align-items: center;">
+                            <button id="btn-clear-console" class="btn-secondary" style="padding: 4px 8px; font-size: 0.8rem; border-radius: 4px;">Limpiar</button>
+                            <div class="status-indicator active"></div>
+                        </div>
                     </div>
                     <div class="console-box" id="console-output">
                         <div class="log-line system">> Sistema Pathwise inicializado.</div>

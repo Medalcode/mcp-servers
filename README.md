@@ -4,7 +4,7 @@
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Tests](https://img.shields.io/badge/tests-176%20passing-success.svg)]()
 
-> **Última actualización**: 20 Junio 2026 — Rate Limiter Resiliency & PDF Generation Fixes.
+> **Última actualización**: 23 Junio 2026 — Security Hardening, Frontend XSS Fixes & Dynamic AI Model Selection.
 [![Lint](https://img.shields.io/badge/lint-ruff-passing-brightgreen.svg)]()
 
 Monorepo unificado con 11 servidores MCP (Model Context Protocol) + Herramientas avanzadas de carrera Pathwise (Dashboard Gráfico y CLI).

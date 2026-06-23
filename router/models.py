@@ -90,14 +90,23 @@ _DEFAULT_MODELS = [
         speed="very_fast",
         cost="low",
     ),
+    ModelInfo(
+        id="qwen2.5-coder:7b",
+        provider="ollama",
+        name="Qwen 2.5 Coder 7B",
+        strengths=["code", "reasoning", "general", "speed"],
+        context_window=32_768,
+        speed="fast",
+        cost="free",
+    ),
 ]
 
 _DEFAULT_TASK_ROUTING = {
-    "code": ["gemini-2.5-pro", "llama-3.3-70b", "gemini-2.5-flash", "cerebras-llama-3.3-70b"],
-    "reasoning": ["gemini-2.5-pro", "llama-3.3-70b", "gemini-2.5-flash"],
+    "code": ["gemini-2.5-pro", "llama-3.3-70b", "gemini-2.5-flash", "cerebras-llama-3.3-70b", "qwen2.5-coder:7b"],
+    "reasoning": ["gemini-2.5-pro", "llama-3.3-70b", "gemini-2.5-flash", "qwen2.5-coder:7b"],
     "math": ["gemini-2.5-pro", "gemini-2.5-flash", "llama-3.3-70b"],
-    "creative": ["gemini-2.0-flash", "gemini-3-flash-preview", "mixtral-8x7b"],
-    "general": ["gemini-2.0-flash", "gemini-2.5-flash", "llama-3.3-70b", "gemini-3-flash-preview"],
+    "creative": ["gemini-2.0-flash", "gemini-3-flash-preview", "mixtral-8x7b", "qwen2.5-coder:7b"],
+    "general": ["gemini-2.0-flash", "gemini-2.5-flash", "llama-3.3-70b", "gemini-3-flash-preview", "qwen2.5-coder:7b"],
     "vision": ["gemini-2.5-pro", "gemini-2.0-flash", "gemini-2.5-flash", "gemini-3-flash-preview"],
     "long_context": ["gemini-2.5-pro", "gemini-2.0-flash", "gemini-2.5-flash", "gemini-3-flash-preview"],
     "speed": ["llama-3.1-8b", "cerebras-llama-3.3-70b", "llama-3.3-70b", "gemini-2.0-flash"],

@@ -27,6 +27,7 @@ from services.scrapers.falabella import scan_falabella
 from services.scrapers.latam import scan_latam
 from services.scrapers.entel import scan_entel
 from services.scrapers.bci import scan_bci
+from services.scrapers.linkedin import scan_linkedin
 
 __all__ = [
     "scan_chiletrabajos", "scan_computrabajo",
@@ -40,5 +41,5 @@ __all__ = [
     "scan_ibm", "scan_microsoft", "scan_nestle",
     "scan_cocacola", "scan_pepsico", "scan_sap",
     "scan_cencosud", "scan_falabella", "scan_latam",
-    "scan_entel", "scan_bci"
+    "scan_entel", "scan_bci", "scan_linkedin"
 ]

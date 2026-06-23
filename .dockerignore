@@ -1,0 +1,42 @@
+.git/
+.env
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Databases and logs
+*.db
+*.sqlite
+*.sqlite3
+metrics.db
+*.log
+logs/
+
+# IDEs and OS
+.vscode/
+.idea/
+.DS_Store
+*.swp
+.opencode/
+
+# Frontend/Node
+node_modules/
+npm-debug.log
+
+# Build files
+build/
+dist/
+*.egg-info/
+
+# Local tests/dumps
+ms_body*.html
+test_*.py
+scratch/

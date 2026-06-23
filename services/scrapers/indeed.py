@@ -14,53 +14,58 @@ USER_AGENTS = [
 
 
 async def scan_indeed(query: str, location: str = "Chile", filters: dict = None) -> list:
+    import asyncio
+    import json
+    from services.browser_client import call_tool
+    
     params = {"q": query, "l": location, "sort": "date"}
     url = f"https://cl.indeed.com/trabajo?{urllib.parse.urlencode(params)}"
-    headers = {"User-Agent": random.choice(USER_AGENTS), "Accept": "text/html"}
-
+    
     try:
-        async with httpx.AsyncClient(timeout=15, follow_redirects=True) as client:
-            resp = await client.get(url, headers=headers)
-            resp.raise_for_status()
+        await call_tool("navigate", {"url": url})
+        await asyncio.sleep(4)
+        
+        script = """
+        const jobs = [];
+        const cards = document.querySelectorAll('div.job_seen_beacon, div.jobsearch-SerpJobCard, div.cardOutline, li.css-1ac2h1w, div.slider_container li');
+        for (const card of cards) {
+            const titleEl = card.querySelector('h2 a, h2.jobTitle a, a.jobTitle, a[data-jk]');
+            if (!titleEl) continue;
+            const title = titleEl.innerText.trim();
+            let url_rel = titleEl.getAttribute('href') || '';
+            if (url_rel.startsWith('/')) url_rel = 'https://cl.indeed.com' + url_rel;
+            
+            const companyEl = card.querySelector('[data-testid="company-name"], span.companyName, .company a, .companyName');
+            const company = companyEl ? companyEl.innerText.trim() : 'Confidencial';
+            
+            const locEl = card.querySelector('[data-testid="text-location"], div.companyLocation, .location');
+            const loc = locEl ? locEl.innerText.trim() : '';
+            
+            const descEl = card.querySelector('[data-testid="job-snippet"], div.job-snippet, .summary, ul li');
+            const desc = descEl ? descEl.innerText.trim() : '';
+            
+            const salaryEl = card.querySelector('[data-testid="attribute_snippet_testid"], .salary-snippet, .salary');
+            const salary = salaryEl ? salaryEl.innerText.trim() : '';
+            
+            const dateEl = card.querySelector('[data-testid="job-date"], .date, .jobsearch-SerpJobCard-footer');
+            const date = dateEl ? dateEl.innerText.trim() : '';
+            
+            jobs.push({ title, company, location: loc, url: url_rel, description: desc.substring(0, 500), salary, date, source: 'Indeed' });
+        }
+        return JSON.stringify(jobs);
+        """
+        
+        res = await call_tool("run_script", {"script": script})
+        
+        # Parse the output from Browser MCP
+        if "---" in res:
+            json_str = res.split("---")[-1].strip()
+        else:
+            json_str = res.replace("[Engine: selenium]", "").strip()
+            
+        jobs = json.loads(json_str)
+        return jobs
+        
     except Exception as e:
-        logger.warning("Indeed request failed: %s", e)
+        logger.warning("Indeed browser request failed: %s", e)
         return []
-
-    soup = BeautifulSoup(resp.text, "lxml")
-    jobs = []
-
-    for card in soup.select("div.job_seen_beacon, div.jobsearch-SerpJobCard, div.cardOutline, li.css-1ac2h1w, div.slider_container li"):
-        try:
-            title_el = card.select_one("h2 a, h2.jobTitle a, a.jobTitle, a[data-jk]")
-            if not title_el:
-                continue
-            title = title_el.get_text(strip=True)
-            url_rel = title_el.get("href", "")
-            job_url = f"https://cl.indeed.com{url_rel}" if url_rel.startswith("/") else url_rel
-
-            company = card.select_one('[data-testid="company-name"], span.companyName, .company a, .companyName')
-            company = company.get_text(strip=True) if company else "Confidencial"
-
-            location_el = card.select_one('[data-testid="text-location"], div.companyLocation, .location')
-            loc = location_el.get_text(strip=True) if location_el else location
-
-            desc_el = card.select_one('[data-testid="job-snippet"], div.job-snippet, .summary, ul li')
-            desc = desc_el.get_text(strip=True) if desc_el else ""
-
-            salary_el = card.select_one('[data-testid="attribute_snippet_testid"], .salary-snippet, .salary')
-            salary = salary_el.get_text(strip=True) if salary_el else ""
-
-            date_el = card.select_one('[data-testid="job-date"], .date, .jobsearch-SerpJobCard-footer')
-            date = date_el.get_text(strip=True) if date_el else ""
-
-            if title:
-                jobs.append({
-                    "title": title, "company": company, "location": loc,
-                    "url": job_url, "description": desc[:500], "salary": salary,
-                    "date": date, "source": "Indeed",
-                })
-        except Exception as e:
-            logger.warning("Indeed parse error: %s", e)
-            continue
-
-    return jobs

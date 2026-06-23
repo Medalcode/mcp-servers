@@ -28,6 +28,7 @@ from services.scrapers.falabella import scan_falabella
 from services.scrapers.latam import scan_latam
 from services.scrapers.entel import scan_entel
 from services.scrapers.bci import scan_bci
+from services.scrapers.linkedin import scan_linkedin
 
 logger = logging.getLogger(__name__)
 
@@ -72,6 +73,7 @@ DEDICATED_SCRAPERS = [
     ("Latam Airlines", scan_latam),
     ("Entel", scan_entel),
     ("Banco BCI", scan_bci),
+    ("LinkedIn", scan_linkedin),
 ]
 
 def _get_scrapemcp_url() -> str:
@@ -180,9 +182,17 @@ async def search_all(query: str, location: str = "Chile",
         async with sem:
             return await _run_scraper_with_retry(name, fn, query, location, filters)
 
+    active_scrapers = DEDICATED_SCRAPERS
+    if filters and filters.get("scrapers"):
+        selected = [s.lower() for s in filters["scrapers"]]
+        active_scrapers = [(name, fn) for name, fn in DEDICATED_SCRAPERS if name.lower() in selected]
+        logger.info(f"Filters selected: {selected}")
+    
+    logger.info(f"Active scrapers count: {len(active_scrapers)}")
+
     tasks = [
         _sem_task(name, fn)
-        for name, fn in DEDICATED_SCRAPERS
+        for name, fn in active_scrapers
     ]
     
     results = await asyncio.shield(asyncio.gather(*tasks, return_exceptions=True)) if tasks else []

@@ -6,6 +6,7 @@ from router.classifier import classify
 from router.providers.google_provider import GoogleProvider
 from router.providers.groq_provider import GroqProvider
 from router.providers.cerebras_provider import CerebrasProvider
+from router.providers.ollama_provider import OllamaProvider
 from router.providers.base import ProviderError
 
 
@@ -16,6 +17,7 @@ class RouterEngine:
             "google": GoogleProvider,
             "groq": GroqProvider,
             "cerebras": CerebrasProvider,
+            "ollama": OllamaProvider,
         }
 
     def _get_provider(self, name: str):
