@@ -14,6 +14,7 @@ function switchSection(sectionId) {
 
 // Ensure the apply button in sidebar works
 document.getElementById('btn-apply').addEventListener('click', () => switchSection('apply'));
+document.getElementById('btn-direct-apply').addEventListener('click', () => switchSection('direct-apply'));
 
 // Console clear button
 document.getElementById('btn-clear-console').addEventListener('click', () => {
@@ -269,9 +270,18 @@ async function startBatchApply() {
         } else {
             logToConsole(`Error iniciando Auto Apply: ${json.message}`, 'error');
         }
-    } catch(e) {
         logToConsole(`Error de red: ${e}`, 'error');
     }
+}
+
+async function startDirectApply() {
+    const url = document.getElementById('direct-url').value.trim();
+    if (!url) {
+        logToConsole("Por favor, ingresa una URL válida.", "error");
+        return;
+    }
+    await startApply(url);
+    document.getElementById('direct-url').value = '';
 }
 
 // Helper function for errors

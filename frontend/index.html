@@ -20,7 +20,8 @@
             <nav class="menu">
                 <button class="menu-btn active" id="btn-search"><i class="fa-solid fa-magnifying-glass"></i> Escáner de Empleos</button>
                 <button class="menu-btn" id="btn-register"><i class="fa-solid fa-user-plus"></i> Registro Masivo</button>
-                <button class="menu-btn" id="btn-apply"><i class="fa-solid fa-paper-plane"></i> Auto Apply</button>
+                <button class="menu-btn" id="btn-apply"><i class="fa-solid fa-robot"></i> Auto Apply Masivo</button>
+                <button class="menu-btn" id="btn-direct-apply"><i class="fa-solid fa-bolt"></i> Aplicación Directa</button>
             </nav>
 
             <div class="metrics-container">
@@ -169,6 +170,17 @@
                     <div style="margin-top: 1rem;">
                         <button class="btn-primary" onclick="startBatchApply()">
                             <i class="fa-solid fa-rocket"></i> Iniciar Auto Apply
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="action-section hidden" id="section-direct-apply">
+                    <h2>Aplicación Directa (Una Oferta)</h2>
+                    <p>Pega la URL de una oferta específica que hayas encontrado (ej. LinkedIn, Trabajando, etc.) para que la IA aplique automáticamente.</p>
+                    <div class="input-group" style="margin-top: 1rem;">
+                        <input type="text" id="direct-url" placeholder="https://www.linkedin.com/jobs/view/..." style="flex: 1; padding: 0.8rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.2); color: #fff;">
+                        <button class="btn-primary" onclick="startDirectApply()">
+                            <i class="fa-solid fa-bolt"></i> Postular Ahora
                         </button>
                     </div>
                 </div>
