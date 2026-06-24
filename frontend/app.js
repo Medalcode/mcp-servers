@@ -359,9 +359,6 @@ function renderTable(data) {
         tbody.appendChild(tr);
     });
 }
-        tbody.appendChild(tr);
-    });
-}
 
 async function startApply(url) {
     logToConsole(`Iniciando postulación pre-vuelo para: ${url}`, 'info');
