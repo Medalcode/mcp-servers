@@ -270,6 +270,7 @@ async function startBatchApply() {
         } else {
             logToConsole(`Error iniciando Auto Apply: ${json.message}`, 'error');
         }
+    } catch(e) {
         logToConsole(`Error de red: ${e}`, 'error');
     }
 }
