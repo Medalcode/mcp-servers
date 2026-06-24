@@ -1,5 +1,6 @@
 import logging
 import json
+import asyncio
 from services.browser_client import call_tool, ensure_browser
 from servers.linkedin import _ensure_linkedin_session
 
@@ -13,7 +14,10 @@ async def scan_linkedin(query: str, location: str = "Chile", filters: dict = Non
     
     try:
         await ensure_browser()
-        await _ensure_linkedin_session()
+        try:
+            await _ensure_linkedin_session()
+        except RuntimeError as e:
+            logger.warning(f"LinkedIn auth missing, proceeding unauthenticated: {e}")
         
         search_keywords = query.strip()
         params = f"keywords={search_keywords.replace(' ', '%20')}&location={location.replace(' ', '%20')}"
@@ -32,57 +36,68 @@ async def scan_linkedin(query: str, location: str = "Chile", filters: dict = Non
         await call_tool("navigate", {"url": url})
         await call_tool("wait", {"ms": 3000})
 
-        script = f"""
-            async function scrollAndExtract() {{
-                const container = document.querySelector('.jobs-search-results-list') || window;
-                let previousHeight = 0;
-                let sameHeightCount = 0;
-                
-                // Scroll down a few times to load more jobs
-                for (let i = 0; i < 10; i++) {{
-                    if (container === window) {{
-                        window.scrollTo(0, document.body.scrollHeight);
-                    }} else {{
-                        container.scrollTo(0, container.scrollHeight);
-                    }}
-                    await new Promise(r => setTimeout(r, 800));
-                    
-                    let currentHeight = container === window ? document.body.scrollHeight : container.scrollHeight;
-                    if (currentHeight === previousHeight) {{
-                        sameHeightCount++;
-                        if (sameHeightCount > 2) break; // Reached bottom
-                    }} else {{
-                        sameHeightCount = 0;
-                    }}
-                    previousHeight = currentHeight;
-                }}
+        # Scroll down a few times to load more jobs (managed in Python to avoid JS blocklist)
+        previous_height = 0
+        same_height_count = 0
+        for _ in range(8):
+            scroll_script = "window.scrollTo(0, document.body.scrollHeight); const c = document.querySelector('.jobs-search-results-list'); if (c) c.scrollTo(0, c.scrollHeight); return document.body.scrollHeight;"
+            current_height = await call_tool("run_script", {"script": scroll_script})
+            await asyncio.sleep(1)
+            
+            # Simple check if we reached bottom
+            try:
+                curr_h = int(str(current_height).replace("[Engine: selenium]", "").strip())
+                if curr_h == previous_height:
+                    same_height_count += 1
+                    if same_height_count > 2:
+                        break
+                else:
+                    same_height_count = 0
+                previous_height = curr_h
+            except Exception:
+                pass
 
-                const items = document.querySelectorAll('.job-card-container, .jobs-search-results__list li, [data-job-id], article.jobs-search-results__list-item');
-                const jobs = [];
-                for(const item of items) {{
-                    const titleEl = item.querySelector('.job-card-list__title, .job-card-container__link, .job-card-search__title, a[data-anonymize="job-title"]');
-                    const companyEl = item.querySelector('.job-card-container__company-name, .job-card-search__company-name, [data-anonymize="company-name"]');
-                    const locEl = item.querySelector('.job-card-container__metadata-item, .job-card-search__location, [data-anonymize="location"]');
-                    const link = titleEl?.closest('a') || titleEl?.querySelector('a') || item.querySelector('a[href*="/jobs/view/"]');
-                    if(titleEl) {{
-                        const href = link ? (link.href || link.getAttribute('href')) : '';
-                        jobs.push({{
-                            title: (titleEl.textContent || '').trim(),
-                            company: (companyEl?.textContent || '').trim(),
-                            location: (locEl?.textContent || '').trim(),
-                            url: href,
-                            description: "",
-                            source: "LinkedIn"
-                        }});
-                    }}
-                }}
-                return JSON.stringify(jobs);
-            }}
-            return await scrollAndExtract();
+        script = """
+            const items = document.querySelectorAll('.job-card-container, .base-search-card, [data-job-id], article.jobs-search-results__list-item');
+            const jobs = [];
+            for(const item of items) {
+                const titleEl = item.querySelector('.job-card-list__title, .job-card-container__link, .job-card-search__title, a[data-anonymize="job-title"], .base-search-card__title, .sr-only');
+                const companyEl = item.querySelector('.job-card-container__company-name, .job-card-search__company-name, [data-anonymize="company-name"], .base-search-card__subtitle');
+                const locEl = item.querySelector('.job-card-container__metadata-item, .job-card-search__location, [data-anonymize="location"], .job-search-card__location');
+                const link = titleEl?.closest('a') || titleEl?.querySelector('a') || item.querySelector('a[href*="/jobs/view/"], a.base-card__full-link') || item.closest('a');
+                
+                let title = (titleEl ? titleEl.textContent : '').trim();
+                if (!title && item.querySelector('.sr-only')) {
+                    title = item.querySelector('.sr-only').textContent.trim();
+                }
+                
+                if(title) {
+                    const href = link ? (link.href || link.getAttribute('href')) : '';
+                    jobs.push({
+                        title: title,
+                        company: (companyEl?.textContent || '').trim(),
+                        location: (locEl?.textContent || '').trim(),
+                        url: href,
+                        description: "",
+                        source: "LinkedIn"
+                    });
+                }
+            }
+            return JSON.stringify(jobs);
         """
         
-        res2 = await call_tool("run_script", {"script": script})
-        data = json.loads(res2.split("---")[-1].strip()) if "---" in res2 else json.loads(res2.replace("[Engine: selenium]", "").strip())
+        import os
+        old_max = os.environ.get("BROWSER_TEXT_MAX")
+        os.environ["BROWSER_TEXT_MAX"] = "500000"
+        try:
+            res2 = await call_tool("run_script", {"script": script})
+            raw_json = res2.split("---")[-1].strip() if "---" in res2 else res2.replace("[Engine: selenium]", "").strip()
+            data = json.loads(raw_json) if raw_json else []
+        finally:
+            if old_max is not None:
+                os.environ["BROWSER_TEXT_MAX"] = old_max
+            else:
+                del os.environ["BROWSER_TEXT_MAX"]
         
         for j in data:
             if j.get("title"):
