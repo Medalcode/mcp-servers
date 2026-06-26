@@ -46,4 +46,28 @@ class TestValidateUrl:
         _validate_url("https://www.google.com/search?q=test")
         _validate_url("http://example.com")
 
+import os
+from unittest.mock import patch, AsyncMock
+from services.scrapers.computrabajo import scan_computrabajo
 
+@pytest.mark.asyncio
+async def test_computrabajo_contract_parsing():
+    # Load HTML fixture
+    fixture_path = os.path.join(os.path.dirname(__file__), 'fixtures', 'computrabajo_mock.html')
+    with open(fixture_path, 'r', encoding='utf-8') as f:
+        html_content = f.read()
+        
+    # Mock httpx AsyncClient
+    mock_response = AsyncMock()
+    mock_response.text = html_content
+    mock_response.raise_for_status.return_value = None
+    
+    with patch('httpx.AsyncClient.get', return_value=mock_response):
+        jobs = await scan_computrabajo("python", "santiago")
+        
+    assert len(jobs) == 1
+    job = jobs[0]
+    assert job["title"] == "Software Engineer"
+    assert job["company"] == "TechCorp"
+    assert job["location"] == "Santiago Metropolitana"
+    assert job["url"] == "https://cl.computrabajo.com/oferta-de-trabajo-123"

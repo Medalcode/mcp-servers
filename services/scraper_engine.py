@@ -226,6 +226,11 @@ async def search_all(query: str, location: str = "Chile",
                 sum(1 for r in scraper_results if r.success),
                 len(DEDICATED_SCRAPERS),
                 sum(r.duration for r in scraper_results))
+                
+    # Log detailed stats for observability (detecting silent failures vs errors)
+    import json
+    stats = get_stats(scraper_results)
+    logger.info("Scraper engine stats: %s", json.dumps(stats, indent=2))
     
     return all_jobs
 

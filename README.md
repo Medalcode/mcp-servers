@@ -181,6 +181,11 @@ mcp-servers/
 
 ## Recent Improvements
 
+### 2026-06-26 — Security Remediation & Observability
+- **Security**: Remediación crítica de seguridad. Se destrackearon `profile.json` y `config.json` para proteger datos personales y se eliminaron múltiples scripts duplicados (`run_apply*.py`) que exponían credenciales hardcodeadas.
+- **Architecture**: Se creó el script unificado `scripts/run_apply_unified.py` que inyecta parámetros vía `.env`.
+- **Observability**: Instrumentación del motor de scraping. `scraper_engine.py` ahora expone estadísticas en logs (mediante `get_stats()`) permitiendo diferenciar entre bloqueos WAF (error HTTP) y selectores CSS rotos.
+- **Contract Tests**: Incorporación de testing con snapshots HTML mockeados para detectar rupturas silenciosas de selectores en portales de empleo.
 ### 2026-07-02 — Security Hardening Completo (26 issues corregidos)
 - **🔴 5 Críticos eliminados**: Password hardcodeado (`IBM_PASS` fallback removido), JS injection via f-strings (5 archivos), XSS via `innerHTML` en frontend, script validation bypass en engine, SSRF via URL injection en scraper, OAuth token sin refresh.
 - **🟠 7 Altos corregidos**: Hardcoded paths de CV reemplazados por `USER_CV_PATH` env var, race condition en `ConnectionManager.broadcast`, WebSocket sin auth (token query param), input validation en Pydantic models (`Field` constraints), stack trace sanitization, IMAP creds leídas lazy, singleton race en `_ensure_engine`.
