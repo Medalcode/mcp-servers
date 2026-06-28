@@ -7,7 +7,7 @@
 > **Última actualización**: 2 Julio 2026 — Security Hardening Completo, XSS, SSRF, JS Injection & Race Conditions.
 [![Lint](https://img.shields.io/badge/lint-ruff-passing-brightgreen.svg)]()
 
-Monorepo unificado con 11 servidores MCP (Model Context Protocol) + Herramientas avanzadas de carrera Pathwise (Dashboard Gráfico y CLI).
+Monorepo unificado con 12 servidores MCP (Model Context Protocol) + Herramientas avanzadas de carrera Pathwise (Dashboard Gráfico y CLI).
 
 ## Servers
 
@@ -26,6 +26,7 @@ Monorepo unificado con 11 servidores MCP (Model Context Protocol) + Herramientas
 | **TaskTracker** | `tasktracker` | TODO persistente con prioridades, deadlines, dependencias y brainstorm |
 | **GitHub** | `python github_server.py` | API de GitHub: repos, issues, PRs (con paginación hasta 200) |
 | **Filesystem** | `python filesystem_server.py` | Operaciones de archivos locales con chunked reading |
+| **GraphifyMCP** | `graphifymcp` | Generación y consulta de Knowledge Graph del monorepo |
 
 ## Install
 
@@ -57,6 +58,7 @@ Each server exposes an SSE endpoint once running:
 | Pathwise | `http://localhost:8006/sse` |
 | GitHub | `http://localhost:8007/sse` |
 | Filesystem | `http://localhost:8008/sse` |
+| GraphifyMCP | `http://localhost:8013/sse` |
 
 The `chromium` service (Selenium standalone Chrome) is shared by BrowserMCP and LinkedInMCP. A noVNC preview of the browser is available at `http://localhost:7900` (password: `secret`).
 
@@ -180,6 +182,9 @@ mcp-servers/
 ```
 
 ## Recent Improvements
+
+### 2026-06-28 — Graphify MCP Integration
+- **Architecture**: Se integró formalmente `graphifyy` como el servidor MCP número 12, exponiendo el puerto `8013`. Esto habilita la generación y consulta nativa del Knowledge Graph del monorepo, optimizando la comprensión de la base de código para agentes de IA sin consumir tokens excesivos de contexto.
 
 ### 2026-06-26 — Security Remediation & Observability
 - **Security**: Remediación crítica de seguridad. Se destrackearon `profile.json` y `config.json` para proteger datos personales y se eliminaron múltiples scripts duplicados (`run_apply*.py`) que exponían credenciales hardcodeadas.

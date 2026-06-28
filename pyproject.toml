@@ -42,6 +42,7 @@ dependencies = [
     "aiosqlite>=0.19.0",
     "playwright>=1.40.0",
     "duckduckgo-search>=8.1.1",
+    "graphifyy>=0.0.1",
 ]
 
 [project.optional-dependencies]
@@ -79,6 +80,7 @@ githubmcp = "servers.github_mcp:main"
 databasemcp = "servers.database_mcp:main"
 emailmcp = "servers.email_mcp:main"
 tasktracker = "servers.task_tracker:main"
+graphifymcp = "servers.graphify_wrapper:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["servers", "engines", "router", "router.providers", "scrapers", "docmcp", "database", "database.repos", "tools", "tools.pipeline", "services", "services.scrapers", "memory_engine", "gh_mcp", "db_mcp", "email_mcp", "task_tracker"]

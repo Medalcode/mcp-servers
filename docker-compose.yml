@@ -138,6 +138,17 @@ services:
       MCP_PORT: "8012"
       MEDALCODE_TASKS_DIR: /root/.medalcode/tasks
 
+  graphifymcp:
+    build: .
+    command: graphifymcp
+    ports:
+      - "8013:8013"
+    volumes:
+      - .:/workspace
+    environment:
+      MCP_PORT: "8013"
+      GRAPHIFY_WORKDIR: /workspace
+
 volumes:
   pathwise-data:
   memory-data:
