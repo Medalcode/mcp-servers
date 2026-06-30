@@ -183,6 +183,9 @@ mcp-servers/
 
 ## Recent Improvements
 
+### 2026-06-30 — Knowledge Graph Extraction
+- **Documentation**: Se ejecutó la extracción nativa del repositorio utilizando Graphify. Se generaron los archivos `GRAPH_REPORT.md`, `graph.json` y `graph.html` en la carpeta `graphify-out`, proporcionando a los agentes de IA un mapa topológico pre-calculado del monorepo (154 archivos de código, 56 comunidades) para optimizar el consumo de tokens y el razonamiento contextual.
+
 ### 2026-06-28 — Graphify MCP Integration
 - **Architecture**: Se integró formalmente `graphifyy` como el servidor MCP número 12, exponiendo el puerto `8013`. Esto habilita la generación y consulta nativa del Knowledge Graph del monorepo, optimizando la comprensión de la base de código para agentes de IA sin consumir tokens excesivos de contexto.
 
