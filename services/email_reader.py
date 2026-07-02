@@ -9,19 +9,20 @@ logger = logging.getLogger(__name__)
 
 class EmailVerificationReader:
     def __init__(self):
-        self.username = os.environ.get("GMAIL_USER")
-        self.app_password = os.environ.get("GMAIL_APP_PASS")
-        self.imap_server = "imap.gmail.com"
         self.mail = None
 
+    def _get_credentials(self):
+        return os.environ.get("GMAIL_USER", ""), os.environ.get("GMAIL_APP_PASS", "")
+
     def connect(self):
-        if not self.username or not self.app_password:
-            logger.error("Gmail credentials missing in environment variables.")
+        username, app_password = self._get_credentials()
+        if not username or not app_password:
+            logger.error("Gmail credentials missing in environment variables (GMAIL_USER, GMAIL_APP_PASS).")
             return False
         
         try:
-            self.mail = imaplib.IMAP4_SSL(self.imap_server)
-            self.mail.login(self.username, self.app_password)
+            self.mail = imaplib.IMAP4_SSL("imap.gmail.com")
+            self.mail.login(username, app_password)
             return True
         except Exception as e:
             logger.error(f"Failed to connect to Gmail: {e}")

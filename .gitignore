@@ -17,3 +17,4 @@ config.json
 .mypy_cache/
 *.env.local
 *.log
+scratch/

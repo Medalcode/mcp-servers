@@ -1,4 +1,5 @@
 import asyncio
+import json
 import os
 import logging
 
@@ -11,7 +12,9 @@ class SuccessFactorsAutomator:
     def __init__(self, engine: SeleniumEngine):
         self.engine = engine
         self.email = os.environ.get("GMAIL_USER")
-        self.password = os.environ.get("IBM_PASS", "Muneca1213##")  # Defaulting to user's master pass
+        self.password = os.environ.get("IBM_PASS")
+        if not self.password:
+            raise ValueError("IBM_PASS environment variable is required. Set it before using SF automator.")
         self.email_reader = EmailVerificationReader()
 
     async def register_account(self, base_url: str):
@@ -36,7 +39,7 @@ class SuccessFactorsAutomator:
                     if "Error" not in res:
                         clicked = True
                         break
-                except:
+                except Exception:
                     pass
             
             if not clicked:
@@ -45,7 +48,7 @@ class SuccessFactorsAutomator:
                     res = self.engine.click_by_text("Crear una cuenta|Create an account")
                     if "Error" not in res:
                         clicked = True
-                except:
+                except Exception:
                     pass
             
             if not clicked:
@@ -61,20 +64,22 @@ class SuccessFactorsAutomator:
         # 2. Fill out the registration form
         logger.info("Filling out registration form...")
         
-        # We execute a JS snippet to try to fill all generic SF fields
+        email_json = json.dumps(self.email)
+        pass_json = json.dumps(self.password)
+
         js_fill = f"""
-        function fillIfPresent(sel, val) {{
+        const fillIfPresent = (sel, val) => {{
             const el = document.querySelector(sel);
             if(el) {{
                 el.value = val;
                 el.dispatchEvent(new Event('input', {{ bubbles: true }}));
                 el.dispatchEvent(new Event('change', {{ bubbles: true }}));
             }}
-        }}
-        fillIfPresent('input[type="email"], input[id*="email"]', '{self.email}');
-        fillIfPresent('input[id*="retypedEmail"]', '{self.email}');
-        fillIfPresent('input[type="password"], input[id*="password"]', '{self.password}');
-        fillIfPresent('input[id*="retypedPassword"]', '{self.password}');
+        }};
+        fillIfPresent('input[type="email"], input[id*="email"]', {email_json});
+        fillIfPresent('input[id*="retypedEmail"]', {email_json});
+        fillIfPresent('input[type="password"], input[id*="password"]', {pass_json});
+        fillIfPresent('input[id*="retypedPassword"]', {pass_json});
         fillIfPresent('input[id*="firstName"]', 'Jonatthan');
         fillIfPresent('input[id*="lastName"]', 'Medalla');
         
@@ -126,11 +131,12 @@ class SuccessFactorsAutomator:
             code = self.email_reader.fetch_latest_verification_code()
             if code:
                 logger.info(f"Intercepted verification code: {code}")
+                code_json = json.dumps(code)
                 # Inject code
                 self.engine.run_script(f"""
                 const pinInput = document.querySelector('input[type="text"], input[id*="pin"], input[id*="code"]');
                 if(pinInput) {{
-                    pinInput.value = '{code}';
+                    pinInput.value = {code_json};
                     pinInput.dispatchEvent(new Event('input', {{ bubbles: true }}));
                     
                     const verifyBtn = document.querySelector('button[id*="verify"], button[id*="submit"]');

@@ -6,30 +6,87 @@ from typing import Any
 import httpx
 
 GMAIL_API = "https://gmail.googleapis.com/gmail/v1/users/me"
-GMAIL_TOKEN = os.getenv("GMAIL_ACCESS_TOKEN", "")
+OAUTH_TOKEN_URL = "https://oauth2.googleapis.com/token"
 
-HEADERS = {
-    "Authorization": f"Bearer {GMAIL_TOKEN}",
-    "Content-Type": "application/json",
-}
+
+def _get_token() -> str:
+    return os.environ.get("GMAIL_ACCESS_TOKEN", "")
+
+
+def _get_refresh_config() -> tuple[str, str, str]:
+    return (
+        os.environ.get("GMAIL_REFRESH_TOKEN", ""),
+        os.environ.get("GMAIL_CLIENT_ID", ""),
+        os.environ.get("GMAIL_CLIENT_SECRET", ""),
+    )
+
+
+async def _refresh_token() -> bool:
+    refresh_token, client_id, client_secret = _get_refresh_config()
+    if not (refresh_token and client_id and client_secret):
+        return False
+    try:
+        async with httpx.AsyncClient() as c:
+            r = await c.post(
+                OAUTH_TOKEN_URL,
+                data={
+                    "refresh_token": refresh_token,
+                    "client_id": client_id,
+                    "client_secret": client_secret,
+                    "grant_type": "refresh_token",
+                },
+                timeout=30,
+            )
+            r.raise_for_status()
+            data = r.json()
+            new_token = data.get("access_token", "")
+            if new_token:
+                os.environ["GMAIL_ACCESS_TOKEN"] = new_token
+                return True
+    except Exception:
+        pass
+    return False
 
 
 def _check_token() -> bool:
-    return bool(GMAIL_TOKEN)
+    return bool(_get_token())
+
+
+async def _request(method: str, path: str, **kwargs) -> dict:
+    token = _get_token()
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json",
+    }
+    async with httpx.AsyncClient() as c:
+        r = await c.request(
+            method, f"{GMAIL_API}{path}",
+            headers=headers, timeout=30, **kwargs
+        )
+        if r.status_code == 401:
+            refreshed = await _refresh_token()
+            if refreshed:
+                headers["Authorization"] = f"Bearer {_get_token()}"
+                r = await c.request(
+                    method, f"{GMAIL_API}{path}",
+                    headers=headers, timeout=30, **kwargs
+                )
+            else:
+                raise RuntimeError(
+                    "Gmail API returned 401 and token refresh failed. "
+                    "Set GMAIL_REFRESH_TOKEN, GMAIL_CLIENT_ID, and GMAIL_CLIENT_SECRET "
+                    "to enable automatic refresh, or update GMAIL_ACCESS_TOKEN manually."
+                )
+        r.raise_for_status()
+        return r.json()
 
 
 async def _get(path: str, params: dict | None = None) -> dict:
-    async with httpx.AsyncClient() as c:
-        r = await c.get(f"{GMAIL_API}{path}", headers=HEADERS, params=params, timeout=30)
-        r.raise_for_status()
-        return r.json()
+    return await _request("GET", path, params=params)
 
 
 async def _post(path: str, data: dict) -> dict:
-    async with httpx.AsyncClient() as c:
-        r = await c.post(f"{GMAIL_API}{path}", headers=HEADERS, json=data, timeout=30)
-        r.raise_for_status()
-        return r.json()
+    return await _request("POST", path, json=data)
 
 
 def _decode_body(part: dict) -> str:

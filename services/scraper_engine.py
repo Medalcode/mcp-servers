@@ -5,6 +5,7 @@ import os
 import random
 import time
 from dataclasses import dataclass, field
+from urllib.parse import quote
 
 
 from services.scrapers import (
@@ -92,7 +93,7 @@ async def _call_scrapemcp(query: str, location: str = "Chile") -> ScraperResult:
     try:
         async with httpx.AsyncClient(timeout=10) as client:
             resp = await client.post(f"{url}/api/scrape", json={
-                "url": f"https://www.google.com/search?q={query}+trabajo+{location}",
+                "url": f"https://www.google.com/search?q={quote(query)}+trabajo+{quote(location)}",
             })
             if resp.status_code == 200:
                 data = resp.json()
@@ -127,7 +128,7 @@ async def _run_scraper_with_retry(name: str, scraper_fn, query: str, location: s
     for attempt in range(max_retries + 1):
         try:
             jobs = await scraper_fn(query, location, filters=filters)
-            if jobs:
+            if jobs is not None:
                 return ScraperResult(
                     source=name,
                     success=True,
@@ -135,11 +136,6 @@ async def _run_scraper_with_retry(name: str, scraper_fn, query: str, location: s
                     duration=time.monotonic() - start,
                     retries=attempt,
                 )
-            if attempt < max_retries:
-                delay = base_delay * (2 ** attempt) + random.uniform(0, 0.5)
-                logger.info("%s returned empty, retrying in %.1fs (attempt %d/%d)",
-                           name, delay, attempt + 1, max_retries)
-                await asyncio.sleep(delay)
         except Exception as e:
             if attempt < max_retries:
                 delay = base_delay * (2 ** attempt) + random.uniform(0, 0.5)

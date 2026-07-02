@@ -25,12 +25,16 @@ class StaticEngine(BrowserEngine):
             self._current_url = resp.url
             content_type = resp.headers.get("content-type", "")
             if "html" not in content_type:
+                error_msg = f"Not HTML (content-type: {content_type})"
+                text_fragment = ""
+                if content_type.startswith("text/"):
+                    text_fragment = resp.text[:2000]
                 return PageResult(
                     url=self._current_url,
                     title="",
                     html="",
-                    text=resp.text[:5000],
-                    error=f"Not HTML (content-type: {content_type})",
+                    text=text_fragment,
+                    error=error_msg,
                 )
             self._soup = BeautifulSoup(resp.content, "lxml")
             if self._soup.title and self._soup.title.string:

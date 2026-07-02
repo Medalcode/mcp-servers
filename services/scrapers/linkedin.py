@@ -39,7 +39,7 @@ async def scan_linkedin(query: str, location: str = "Chile", filters: dict = Non
         # Scroll down a few times to load more jobs (managed in Python to avoid JS blocklist)
         previous_height = 0
         same_height_count = 0
-        for _ in range(8):
+        for _ in range(25):
             scroll_script = "window.scrollTo(0, document.body.scrollHeight); const c = document.querySelector('.jobs-search-results-list'); if (c) c.scrollTo(0, c.scrollHeight); return document.body.scrollHeight;"
             current_height = await call_tool("run_script", {"script": scroll_script})
             await asyncio.sleep(1)

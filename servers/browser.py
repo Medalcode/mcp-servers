@@ -24,8 +24,6 @@ _engine_lock = threading.Lock()
 
 def _ensure_engine():
     global _engine
-    if _engine is not None:
-        return _engine
     with _engine_lock:
         if _engine is not None:
             return _engine
@@ -82,7 +80,7 @@ _BLOCKED_HOSTNAMES = {"localhost", "127.0.0.1", "::1", "0.0.0.0", "metadata.goog
 
 # Cache DNS lookups to reduce latency and mitigate some SSRF attacks
 _dns_cache: dict[str, tuple[bool, float]] = {}
-_dns_cache_ttl = 300
+_dns_cache_ttl = 30
 _dns_cache_max = 500
 
 
@@ -172,6 +170,13 @@ def _validate_final_url(result) -> str | None:
         return f"Navigation redirected to blocked hostname: {hostname}"
     if hostname and _is_private_hostname(hostname):
         return f"Navigation redirected to private IP: {hostname}"
+    try:
+        addr = ipaddress.ip_address(hostname)
+        for block in _PRIVATE_BLOCKS:
+            if addr in block:
+                return f"Navigation redirected to private IP: {hostname}"
+    except ValueError:
+        pass
     return None
 
 

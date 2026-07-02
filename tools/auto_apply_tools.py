@@ -86,20 +86,6 @@ async def _should_apply(page_text: str, profile: dict) -> tuple[bool, str]:
         return True, "No se pudo evaluar la compatibilidad, se procede con postulación"
 
 
-async def _get_context_help(question: FormQuestion, profile: dict) -> str:
-    label_lower = question.label.lower()
-
-    if any(t in label_lower for t in ["carrera", "estudiando", "semestre", "formación", "formación académica", "casa de estudios", "universidad"]):
-        edu = profile.get("education", [])
-        if edu:
-            current = [e for e in edu if e.get("current")]
-            if current:
-                e = current[0]
-                return f"{e['degree']} en {e['school']}, actualmente cursando."
-            return f"{edu[0]['degree']} en {edu[0]['school']}."
-    return ""
-
-
 async def _fill_field_browser(driver_caller, q: FormQuestion, profile: dict, tailored_cv_path: str = None) -> tuple[int, str]:
     if q.type in (QuestionType.HIDDEN, QuestionType.PASSWORD):
         return 0, ""

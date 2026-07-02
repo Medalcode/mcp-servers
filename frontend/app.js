@@ -380,11 +380,11 @@ async function startApply(url) {
             body: JSON.stringify({ url })
         });
         
-        const json = await res.json();
-        if(json.status === 'success') {
-            logToConsole(`Postulación exitosa a: ${url}`, 'success');
+        const data = await res.json();
+        if (data.status === 'success') {
+            alertHtml('¡Postulación completada exitosamente!', 'success');
         } else {
-            logToConsole(`Postulación abortada/fallida: ${json.message}`, 'error');
+            logToConsole(`Postulación abortada/fallida: ${data.message}`, 'error');
         }
     } catch(e) {
         logToConsole(`Error de red al postular: ${e}`, 'error');
@@ -395,7 +395,7 @@ function logToConsole(msg, type='info') {
     const consoleBox = document.getElementById('console-output');
     const div = document.createElement('div');
     div.className = `log-line ${type}`;
-    div.innerText = `> ${msg}`;
+    div.textContent = `> ${msg}`;
     consoleBox.appendChild(div);
     consoleBox.scrollTop = consoleBox.scrollHeight;
 }

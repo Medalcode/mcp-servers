@@ -1,4 +1,5 @@
 import logging
+import re
 import shutil
 import time
 import os
@@ -140,7 +141,7 @@ class SeleniumEngine(BrowserEngine):
                 self._driver = _uc.Chrome(
                     options=opts, 
                     user_data_dir=self._temp_dir,
-                    version_main=149
+                    version_main=int(os.environ.get("CHROME_VERSION", "149"))
                 )
             elif chromedriver:
                 service = Service(executable_path=chromedriver)
@@ -361,8 +362,37 @@ class SeleniumEngine(BrowserEngine):
             logger.exception("click_by_text failed")
             return f"click_by_text failed: {e}"
 
+    def _validate_script(self, script: str) -> None:
+        _BLOCKED_JS_PATTERNS = [
+            r"\bfetch\s*\(",
+            r"\bxmlhttprequest\b",
+            r"\bwebsocket\b",
+            r"\bfilereader\b",
+            r"\bimportscripts\b",
+            r"\bworker\b",
+            r"\bnavigator\.sendbeacon\b",
+            r"\bdocument\.write\b",
+            r"\bdocument\.open\b",
+            r"\btop\.",
+            r"\bparent\.",
+            r"\b(alert|confirm|prompt)\s*\(",
+        ]
+        dangerous = [
+            "eval", "function", "settimeout", "setinterval",
+            "new function", "reflect.construct",
+            "import(", "importscripts",
+        ]
+        script_lower = script.lower()
+        for keyword in dangerous:
+            if keyword in script_lower:
+                raise ValueError(f"Script blocked: contains dangerous API '{keyword}'")
+        for pattern in _BLOCKED_JS_PATTERNS:
+            if re.search(pattern, script_lower):
+                raise ValueError("Script blocked: contains dangerous API")
+
     def run_script(self, script: str) -> str:
         try:
+            self._validate_script(script)
             self._ensure_driver()
             result = self._driver.execute_script(script)
             if result is None:

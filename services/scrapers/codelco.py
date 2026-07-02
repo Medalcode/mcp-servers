@@ -1,8 +1,8 @@
 import logging
-import re
 import xml.etree.ElementTree as ET
 
 import httpx
+from bs4 import BeautifulSoup
 
 logger = logging.getLogger(__name__)
 
@@ -52,7 +52,7 @@ async def scan_codelco(query: str, location: str = "", filters: dict = None) -> 
             elif "Antofagasta" in title:
                 loc = "Antofagasta, Chile"
 
-            desc_clean = re.sub(r"<[^>]+>", "", desc).strip()[:500]
+            desc_clean = BeautifulSoup(desc, "lxml").get_text(strip=True)[:500]
             jobs.append({
                 "title": title,
                 "company": "Codelco",

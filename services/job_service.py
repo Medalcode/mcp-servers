@@ -59,14 +59,8 @@ async def search_jobs(query: str, location: str = "Chile", remote_only: bool = F
 
     all_jobs = [normalize(j) for j in all_jobs if j.get("title")]
 
-    # Strict Keyword Match (if a query was provided, it must be in title or description)
-    if query and query.strip():
-        q_lower = query.strip().lower()
-        # Some portals do fuzzy match, we enforce exact term presence
-        all_jobs = [
-            j for j in all_jobs
-            if q_lower in j["title"].lower() or q_lower in j["description"].lower()
-        ]
+    # Removed Strict Keyword Match to allow fuzzy matches and AI scoring to work correctly.
+    # We now trust the source portals to return relevant results for the query.
 
     if remote_only:
         remote_terms = ["remote", "remoto", "teletrabajo", "home office",

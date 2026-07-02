@@ -82,7 +82,7 @@ async def scan_duckduckgo(domain: str, source_name: str, query: str, location: s
                     try:
                         parsed = urllib.parse.parse_qs(urllib.parse.urlparse(raw_url).query)
                         raw_url = parsed.get('uddg', [raw_url])[0]
-                    except:
+                    except Exception:
                         pass
                 
                 if not raw_url.startswith("http"):

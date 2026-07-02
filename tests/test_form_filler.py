@@ -108,7 +108,8 @@ class TestGenerateAnswer:
         assert "Python" in result
         assert "JavaScript" in result
 
-    def test_salary_keyword(self, sample_profile):
+    def test_salary_keyword(self, sample_profile, monkeypatch):
+        monkeypatch.setenv("DEFAULT_SALARY", "800000")
         q = FormQuestion(QuestionType.TEXT, "Pretensión de renta", "sueldo")
         result = generate_answer(q, sample_profile)
         assert result is not None

@@ -1,4 +1,5 @@
 import asyncio
+import json
 import logging
 from urllib.parse import urlparse
 
@@ -78,12 +79,12 @@ class ProfileSyncEngine:
         # using the data from self.profile
         
         summary = self.profile.get("personalInfo", {}).get("summary", "")
+        summary_json = json.dumps(summary)
         
         js_sync = f"""
-        // Inyectar resumen
         const summaryInput = document.querySelector('textarea[name*="summary"], textarea[id*="summary"], textarea[name*="description"]');
         if (summaryInput && !summaryInput.value) {{
-            summaryInput.value = `{summary}`;
+            summaryInput.value = {summary_json};
             summaryInput.dispatchEvent(new Event('input', {{ bubbles: true }}));
         }}
         

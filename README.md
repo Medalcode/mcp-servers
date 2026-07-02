@@ -2,9 +2,9 @@
 
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue.svg)]()
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-176%20passing-success.svg)]()
+[![Tests](https://img.shields.io/badge/tests-199%20passing-success.svg)]()
 
-> **Última actualización**: 23 Junio 2026 — Security Hardening, Frontend XSS Fixes & Dynamic AI Model Selection.
+> **Última actualización**: 2 Julio 2026 — Security Hardening Completo, XSS, SSRF, JS Injection & Race Conditions.
 [![Lint](https://img.shields.io/badge/lint-ruff-passing-brightgreen.svg)]()
 
 Monorepo unificado con 11 servidores MCP (Model Context Protocol) + Herramientas avanzadas de carrera Pathwise (Dashboard Gráfico y CLI).
@@ -116,7 +116,7 @@ python filesystem_server.py
 - **Protección de Protocolo MCP**: Salida de logs dirigida a `stderr` para evitar corrupciones en el canal JSON-RPC (`stdout`).
 - **Concurrencia DB (Thread-Safe)**: Manejo de conexiones SQLite aisladas por hilo (thread-local) con modo WAL habilitado.
 
-## Tests — 176 tests, todos pasando
+## Tests — 199 tests, todos pasando
 
 El proyecto cuenta con una suite de pruebas utilizando `pytest` y `pytest-asyncio`. Las pruebas incluyen fixtures automatizados con bases de datos en memoria para no afectar el entorno local.
 
@@ -142,6 +142,7 @@ pytest tests/ -v
 | Database MCP | 3 | SQLite queries, tablas, describe |
 | Browser Security | 32 | URL validation, script sandbox, DNS, private IPs |
 | Auto-Apply Security | 10 | CSS escape, safe selectors |
+| Total | 199 | All passing |
 
 ## Tech Stack
 
@@ -179,6 +180,13 @@ mcp-servers/
 ```
 
 ## Recent Improvements
+
+### 2026-07-02 — Security Hardening Completo (26 issues corregidos)
+- **🔴 5 Críticos eliminados**: Password hardcodeado (`IBM_PASS` fallback removido), JS injection via f-strings (5 archivos), XSS via `innerHTML` en frontend, script validation bypass en engine, SSRF via URL injection en scraper, OAuth token sin refresh.
+- **🟠 7 Altos corregidos**: Hardcoded paths de CV reemplazados por `USER_CV_PATH` env var, race condition en `ConnectionManager.broadcast`, WebSocket sin auth (token query param), input validation en Pydantic models (`Field` constraints), stack trace sanitization, IMAP creds leídas lazy, singleton race en `_ensure_engine`.
+- **🟡 5 Medios corregidos**: DNS TOCTOU (cache TTL reducido 300→30s + re-validación post-redirect), HTML sanitization con BeautifulSoup en 6 scrapers RSS, `except:` desnudos cambiados a `except Exception`, dead code removido (`_ANSWER_STRATEGIES`, `_get_context_help`), settings endpoint con API token.
+- **🟢 9 Bajos corregidos**: Playwright engine con fast-fail en import, static engine sin binarios en texto, Chromium version configurable (`CHROME_VERSION`), reload mode configurable (`API_RELOAD`), formularios de salario sin fallback hardcodeado, `json.dumps()` en form_filler para target/val.
+- **Tests**: 199/199 pasando. Arquitectura: validación JS unificada en `SeleniumEngine.run_script()` que cierra el bypass del security layer.
 
 ### 2026-06-20 — AI Rate Limiter Resiliency & Application Pipeline Fixes
 - **AI Provider Fallback Optimization**: Se parcheó `router/providers/base.py` para abortar proactivamente el proveedor de IA primario (como Groq) si devuelve una cabecera `Retry-After` irracional (por ejemplo, > 10 segundos). Esto evita que los procesos de postulación masiva se congelen durante decenas de minutos y obliga al `RouterEngine` a cambiar dinámicamente a modelos de *fallback* (como Gemini).

@@ -25,12 +25,16 @@ class PlaywrightEngine(BrowserEngine):
             return True
         try:
             from playwright.async_api import async_playwright
+        except ImportError:
+            self._available = False
+            return False
+        try:
             self._playwright = await async_playwright().start()
             self._browser = await self._playwright.chromium.launch(headless=True)
             self._page = await self._browser.new_page()
             self._available = True
             return True
-        except Exception:
+        except (ImportError, Exception):
             self._available = False
             return False
 
@@ -42,6 +46,8 @@ class PlaywrightEngine(BrowserEngine):
             has_running_loop = False
         if has_running_loop:
             if self._loop is None or self._loop.is_closed():
+                self._loop = asyncio.new_event_loop()
+            if self._loop.is_closed():
                 self._loop = asyncio.new_event_loop()
             return self._loop.run_until_complete(coro)
         return asyncio.run(coro)

@@ -147,10 +147,6 @@ def _parse_forms_text(text: str) -> list[FormQuestion]:
     
     return questions
 
-
-_ANSWER_STRATEGIES = []
-
-
 def _build_strategies(profile: dict):
     pi = profile.get("personalInfo", {})
     email = pi.get("email", "")
@@ -190,7 +186,7 @@ def _build_strategies(profile: dict):
         (r'(conocimiento|tecnología|stack|técnico)',
          skills or "Según perfil profesional."),
         (r'(sueldo|salario|renta|pretensión)',
-         salary if salary else os.environ.get("DEFAULT_SALARY", "800000")),
+         salary if salary else os.environ.get("DEFAULT_SALARY", "")),
     ]
 
 
@@ -312,3 +308,112 @@ def generate_select_answer(question: FormQuestion, profile: dict) -> str:
                 return match
             
     return first_valid
+
+from engines.selenium_engine import SeleniumEngine
+from services.ai_provider import _call_ai, _clean_json
+import asyncio
+
+class FormFillerAgent:
+    def __init__(self, engine: SeleniumEngine, profile_data: dict, add_log_func=None):
+        self.engine = engine
+        self.profile_data = profile_data
+        self.max_steps = 15
+        self.add_log = add_log_func
+
+    async def _log(self, msg: str):
+        logger.info(msg)
+        if self.add_log:
+            await self.add_log(f"[AI Agent] {msg}")
+
+    async def execute(self, job_id: str) -> bool:
+        for step in range(self.max_steps):
+            await self._log(f"Analizando paso {step+1}/{self.max_steps}...")
+            await asyncio.sleep(4)
+            
+            # Check for success
+            try:
+                page_text = self.engine.extract("body")
+                page_text_lower = " ".join(page_text).lower()
+                success_keywords = ["postulación enviada", "application submitted", "successfully applied", "se ha enviado tu solicitud", "ya te has postulado"]
+                if any(k in page_text_lower for k in success_keywords):
+                    await self._log("¡Mensaje de éxito detectado en la pantalla!")
+                    return True
+            except Exception:
+                pass
+
+            forms = self.engine.get_forms()
+            dom_text = "CAMPOS DISPONIBLES:\n"
+            inputs_found = 0
+            for f in forms:
+                for field in f.fields:
+                    desc = f"Tag: {field.tag}, Type: {field.type}, Name: {field.name}, Label/Placeholder: {field.label}"
+                    dom_text += f"- [{desc}]\n"
+                    inputs_found += 1
+            if inputs_found == 0:
+                dom_text += "(Ninguno)\n"
+
+            try:
+                stray_buttons = self.engine.extract("button, a")
+                valid_buttons = list(set(b.strip() for b in stray_buttons if b.strip() and len(b.strip()) < 50))[:20]
+                dom_text += "\nBOTONES VISIBLES:\n"
+                for b in valid_buttons:
+                    dom_text += f"- '{b}'\n"
+            except Exception:
+                pass
+
+            prompt = f"""
+Eres un agente llenando una postulación paso a paso.
+CV: {json.dumps(self.profile_data, ensure_ascii=False)}
+
+PANTALLA:
+{dom_text}
+
+Elige UNA sola acción. Responde SOLO con JSON estricto:
+{{
+    "action": "click" | "fill" | "upload" | "finish",
+    "target": "texto del botón (click) O atributo name/placeholder (fill/upload)",
+    "value": "texto a escribir (solo fill)"
+}}
+"""
+            try:
+                raw = await _call_ai(prompt)
+                json_str = _clean_json(raw)
+                if not json_str.startswith("{"):
+                    m = re.search(r'\{.*\}', json_str, re.DOTALL)
+                    if m: json_str = m.group(0)
+                
+                data = json.loads(json_str)
+                action = data.get("action")
+                target = data.get("target")
+                val = data.get("value", "")
+
+                await self._log(f"Decisión: {action} | target: {target} | value: {val}")
+
+                if action == "finish":
+                    return True
+                elif action == "click":
+                    await self._log(f"Haciendo click en '{target}'...")
+                    await asyncio.to_thread(self.engine.click_by_text, target)
+                elif action == "fill":
+                    await self._log(f"Llenando campo '{target}' con '{val}'...")
+                    target_json = json.dumps(target)
+                    val_json = json.dumps(val)
+                    js = f"""
+                    const ins = document.querySelectorAll('input, textarea');
+                    for (let i of ins) {{
+                        if (i.name === {target_json} || i.placeholder === {target_json}) {{
+                            i.value = {val_json};
+                            i.dispatchEvent(new Event('input', {{ bubbles: true }}));
+                            return 'ok';
+                        }}
+                    }}
+                    """
+                    await asyncio.to_thread(self.engine.run_script, js)
+                elif action == "upload":
+                    await self._log("Intento de subida de archivo (requiere selector exacto)...")
+                    pass # Upload logic is complex via JS without exact path
+            except Exception as e:
+                await self._log(f"Error parseando respuesta de IA: {e}")
+
+        await self._log("Se alcanzó el límite máximo de pasos sin finalizar.")
+        return False
