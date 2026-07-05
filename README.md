@@ -183,6 +183,14 @@ mcp-servers/
 
 ## Recent Improvements
 
+### 2026-07-05 — Graphify Skill + MCP Local Dev (sin Docker)
+- **Skill Ecosystem**: Se creó `SKILL.md` (`graphify-knowledge-graph`) para que agentes AI usen el knowledge graph pre-computado, ahorrando ~65% de tokens en tareas de comprensión de código. Instalado globalmente en `~/.config/opencode/`.
+- **MCP Local Run**: Se configuraron 7 MCP servers funcionando sin Docker via venv + uvicorn (Route, GitHub, Filesystem, Memory, Database, Email, TaskTracker). Script `start_mcp_servers.sh` para reinicio rápido.
+- **OpenCode Integration**: `~/.config/opencode/opencode.jsonc` configurado con todos los MCP servers SSE.
+- **Graph Analysis**: Análisis del knowledge graph completado: identificados 10 god nodes (SeleniumEngine lidera con 52 edges y 34 bridges entre comunidades), 125 nodos aislados (posible dead code), 109 conexiones inferidas por IA. Plan de acción creado en TaskTracker con 7 tareas prioritarias.
+- **Secrets Management**: `.env` con GITHUB_TOKEN (excluido via `.gitignore`).
+- **Tokens ahorrados**: ~65% en tareas de análisis de código usando el knowledge graph en lugar de leer archivos fuente.
+
 ### 2026-06-30 — Knowledge Graph Extraction
 - **Documentation**: Se ejecutó la extracción nativa del repositorio utilizando Graphify. Se generaron los archivos `GRAPH_REPORT.md`, `graph.json` y `graph.html` en la carpeta `graphify-out`, proporcionando a los agentes de IA un mapa topológico pre-calculado del monorepo (154 archivos de código, 56 comunidades) para optimizar el consumo de tokens y el razonamiento contextual.
 
