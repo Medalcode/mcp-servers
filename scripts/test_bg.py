@@ -4,7 +4,7 @@ from api_server import bg_batch_apply
 async def main():
     try:
         await bg_batch_apply("test-id", ["trainee"], 5)
-    except Exception as e:
+    except Exception:
         import traceback
         traceback.print_exc()
 

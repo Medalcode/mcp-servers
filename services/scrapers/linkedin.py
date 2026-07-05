@@ -107,7 +107,7 @@ async def scan_linkedin(query: str, location: str = "Chile", filters: dict = Non
         if "checkpoint" in str(e).lower() or "credentials" in str(e).lower():
             logger.error(f"LinkedIn Auth Error: {e}")
             jobs.append({
-                "title": f"⚠️ REQUIERE LOGIN: LinkedIn",
+                "title": "⚠️ REQUIERE LOGIN: LinkedIn",
                 "company": "LinkedIn",
                 "location": location,
                 "url": "https://www.linkedin.com/login",

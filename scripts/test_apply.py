@@ -33,7 +33,8 @@ async def main():
     # Group jobs by domain
     jobs_by_domain = defaultdict(list)
     for j in jobs:
-        if not j.get("url"): continue
+        if not j.get("url"):
+            continue
         domain = urlparse(j["url"]).netloc.replace("www.", "")
         jobs_by_domain[domain].append(j)
 

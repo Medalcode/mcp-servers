@@ -73,7 +73,6 @@ async def scan_getonboard(query: str, location: str = "Chile", filters: dict = N
 
     for card in soup.select("div[id^='job-'], div[data-job-id], article a[href*='/job/'], a[href*='/jobs/']"):
         try:
-            card_el = card if card.name in ('article', 'div') else card.parent
             title_el = card.select_one("h2, h3, .job-title, [class*=title]")
             if not title_el:
                 title_el = card

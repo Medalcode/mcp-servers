@@ -1,13 +1,9 @@
-import json
 import os
-import sys
 import time
-import re
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait, Select
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import TimeoutException, NoSuchElementException
 
 chromedriver_port = os.environ.get("CHROMEDRIVER_PORT", "38731")
 driver = webdriver.Remote(
@@ -22,7 +18,7 @@ def click(by, value, timeout=10):
         driver.execute_script("arguments[0].scrollIntoView(true);", el)
         el.click()
         return True
-    except:
+    except Exception:
         return False
 
 def fill(by, value, text, timeout=10):
@@ -35,7 +31,7 @@ def fill(by, value, text, timeout=10):
             el.clear()
             el.send_keys(text)
         return True
-    except:
+    except Exception:
         return False
 
 def getonboard(url):
@@ -51,7 +47,7 @@ def getonboard(url):
                 time.sleep(3)
                 print(f"Clicked apply, now at: {driver.current_url}")
                 break
-        except:
+        except Exception:
             continue
     print(f"  Final URL: {driver.current_url}")
     print(f"  Body: {driver.find_element(By.TAG_NAME, 'body').text[:300]}")

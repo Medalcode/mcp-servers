@@ -52,16 +52,6 @@ async def research_company(company_name: str) -> dict:
 
     try:
         from services.ai_provider import _call_ai, _clean_json
-        prompt = f"""Proporciona información sobre la empresa "{company_name}" en Chile. Responde SOLO con JSON:
-{{
-  "website": str o "",
-  "industry": str o "",
-  "size": str o "",
-  "description": str (breve descripción),
-  "culture": str (cultura laboral),
-  "techStack": str o "",
-  "careersUrl": str o ""
-}}"""
         result = await _call_ai("company_research -- " + company_name[:50])
         cleaned = _clean_json(result)
         ai_data = json.loads(cleaned)

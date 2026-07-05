@@ -5,7 +5,6 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from services.browser_client import call_tool, stop_browser, ensure_browser
-from services.ai_provider import generate_cover_letter
 from database.repos import profiles as profile_repo
 from tools.auto_apply_tools import _smart_fill_form, _auto_click_apply
 
@@ -30,9 +29,9 @@ async def try_apply(name, url):
     
     body = await safe("navigate", {"url": url})
     if not body:
-        print(f"   ❌ Could not load page")
+        print("   ❌ Could not load page")
         return
-    print(f"   ✅ Page loaded")
+    print("   ✅ Page loaded")
     
     # Extract page text
     text = await safe("run_script", {"script": "return document.body.innerText"})

@@ -1,4 +1,3 @@
-import re
 
 with open("api_server.py", "r") as f:
     content = f.read()

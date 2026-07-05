@@ -1,8 +1,5 @@
 import urllib.parse
-import httpx
 import logging
-from bs4 import BeautifulSoup
-import random
 
 logger = logging.getLogger(__name__)
 

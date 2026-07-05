@@ -40,8 +40,6 @@ async def _auto_click_apply():
 
 async def _should_apply(page_text: str, profile: dict) -> tuple[bool, str]:
     """Check if the job matches the user's profile."""
-    text_lower = (page_text or "").lower()
-
     skills = profile.get("skills", [])
     exp = profile.get("experience", [])
     edu = profile.get("education", [])
@@ -512,7 +510,7 @@ def register_tools(mcp: FastMCP):
             # Fast check
             try:
                 jd_text = await _call_browser_tool("run_script", {"script": "return (document.body.innerText || '').slice(0, 2000)"})
-            except:
+            except Exception:
                 jd_text = ""
             tailored_cv_path = await tailor_cv_pdf(profile, jd_text, f"/tmp/opencode/cv_{app_id}.pdf")
             res = await _batch_apply_one(url, profile, tailored_cv_path)

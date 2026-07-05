@@ -7,8 +7,6 @@ from dotenv import load_dotenv
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from services.browser_client import call_tool, stop_browser, ensure_browser
-from database.repos import profiles as profile_repo
-from tools.auto_apply_tools import _smart_fill_form
 
 # Cargar variables de entorno desde el archivo .env
 load_dotenv()

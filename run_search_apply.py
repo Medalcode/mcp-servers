@@ -24,7 +24,7 @@ async def main():
 
     for name, url in OFFER_URLS[:3]:  # First 3 to start
         print(f"\n--- {name} ---")
-        result = await browser("navigate", {"url": url})
+        await browser("navigate", {"url": url})
         await asyncio.sleep(4)
         
         text = await browser("run_script", {"script": "return document.body.innerText"})

@@ -1,8 +1,4 @@
-import logging
-
 from .openai_compatible import OpenAICompatibleProvider
-
-logger = logging.getLogger(__name__)
 
 _MODEL_MAP = {
     "llama-3.3-70b": "llama-3.3-70b-versatile",

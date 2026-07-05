@@ -17,7 +17,7 @@ def _get_engine() -> RouterEngine:
         _engine = RouterEngine()
     return _engine
 
-async def _call_ai(prompt: str, model: str = None) -> str:
+async def _call_ai(prompt: str, model: str | None = None) -> str:
     engine = _get_engine()
     
     # Read dynamically so changes in os.environ apply immediately

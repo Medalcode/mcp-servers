@@ -152,7 +152,6 @@ def _build_strategies(profile: dict):
     email = pi.get("email", "")
     phone = pi.get("phone", "")
     city = pi.get("city", "")
-    current_title = pi.get("currentTitle", "")
     skills = ", ".join(profile.get("skills", [])[:10])
     salary = profile.get("personalInfo", {}).get("salary_expectation", "")
 
@@ -380,7 +379,8 @@ Elige UNA sola acción. Responde SOLO con JSON estricto:
                 json_str = _clean_json(raw)
                 if not json_str.startswith("{"):
                     m = re.search(r'\{.*\}', json_str, re.DOTALL)
-                    if m: json_str = m.group(0)
+                    if m:
+                        json_str = m.group(0)
                 
                 data = json.loads(json_str)
                 action = data.get("action")

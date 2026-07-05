@@ -27,7 +27,6 @@ async def scan_bhp(query: str, location: str = "", filters: dict = None) -> list
         logger.warning("BHP RSS parse error: %s", e)
         return []
 
-    ns = {"": "http://www.w3.org/2005/Atom"}
     jobs = []
     for item in root.iter("item"):
         try:

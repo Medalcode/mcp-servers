@@ -1,7 +1,6 @@
 import asyncio
 import os
 import re
-import sqlite3
 import aiosqlite
 from contextlib import asynccontextmanager
 import uuid

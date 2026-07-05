@@ -24,9 +24,9 @@ def register_tools(mcp: FastMCP):
         return json.dumps(profiles, indent=2, ensure_ascii=False)
 
     @mcp.tool()
-    async def profile_save(name: str, title: str = "", summary: str = "", skills: list[str] = []) -> str:
+    async def profile_save(name: str, title: str = "", summary: str = "", skills: list[str] | None = None) -> str:
         """Create a new professional profile with a name, optional title, summary, and skills list."""
-        profile = profile_repo.create_profile(1, name, "professional", title=title, summary=summary, skills=skills)
+        profile = profile_repo.create_profile(1, name, "professional", title=title, summary=summary, skills=skills or [])
         if profile:
             return f"Profile '{name}' created with ID {profile['id']}."
         return "Failed to create profile."

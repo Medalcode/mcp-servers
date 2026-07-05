@@ -1,8 +1,4 @@
-import logging
-
 from .openai_compatible import OpenAICompatibleProvider
-
-logger = logging.getLogger(__name__)
 
 _MODEL_MAP = {
     "cerebras-llama-3.3-70b": "llama3.3-70b",
