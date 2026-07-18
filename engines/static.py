@@ -8,7 +8,9 @@ from engines.base import BrowserEngine, PageResult, LinkInfo, FormInfo, FormFiel
 
 
 class StaticEngine(BrowserEngine):
-    name = "static"
+    @property
+    def name(self) -> str:
+        return "static"
 
     def __init__(self):
         self._session = requests.Session()

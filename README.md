@@ -183,6 +183,12 @@ mcp-servers/
 
 ## Recent Improvements
 
+### 2026-07-18 — Arquitectura y Testing Refactor
+- **God Objects Decomposed**: `api_server.py` (anteriormente de ~400 líneas) fue dividido en sub-módulos (`api/endpoints.py`, `api/schemas.py`, `api/ws.py`, `api/db.py`, `api/tasks.py`), reduciendo el acoplamiento y mejorando mantenibilidad.
+- **Circular Dependencies**: Eliminada la dependencia circular crítica entre `services/form_filler.py` y `tools/auto_apply_tools.py` extrayendo la lógica central hacia `services/apply_service.py`.
+- **Abstract Base Classes**: `engines/base.py` ahora impone interfaces estrictas usando `abc.ABC` y `@property` abstractos. Actualizados `selenium_engine.py`, `playwright_engine.py` y `static.py` para cumplir el contrato rigurosamente.
+- **Testing Expandido**: Creados `test_route_server.py` y `test_doc_server.py`, añadiendo cobertura a los endpoints y tools MCP de `servers/route.py` y `servers/doc.py`.
+
 ### 2026-07-05 — Graphify Skill + MCP Local Dev (sin Docker)
 - **Skill Ecosystem**: Se creó `SKILL.md` (`graphify-knowledge-graph`) para que agentes AI usen el knowledge graph pre-computado, ahorrando ~65% de tokens en tareas de comprensión de código. Instalado globalmente en `~/.config/opencode/`.
 - **MCP Local Run**: Se configuraron 7 MCP servers funcionando sin Docker via venv + uvicorn (Route, GitHub, Filesystem, Memory, Database, Email, TaskTracker). Script `start_mcp_servers.sh` para reinicio rápido.

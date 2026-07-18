@@ -11,7 +11,9 @@ logger = logging.getLogger(__name__)
 
 
 class PlaywrightEngine(BrowserEngine):
-    name = "playwright"
+    @property
+    def name(self) -> str:
+        return "playwright"
 
     def __init__(self):
         self._page = None

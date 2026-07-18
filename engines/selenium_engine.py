@@ -55,7 +55,9 @@ def _detect_chromedriver() -> str:
 
 
 class SeleniumEngine(BrowserEngine):
-    name = "selenium"
+    @property
+    def name(self) -> str:
+        return "selenium"
 
     def __init__(self):
         self._driver = None
