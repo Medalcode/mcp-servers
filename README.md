@@ -7,7 +7,7 @@
 > **Última actualización**: 2 Julio 2026 — Security Hardening Completo, XSS, SSRF, JS Injection & Race Conditions.
 [![Lint](https://img.shields.io/badge/lint-ruff-passing-brightgreen.svg)]()
 
-Monorepo unificado con 12 servidores MCP (Model Context Protocol) + Herramientas avanzadas de carrera Pathwise (Dashboard Gráfico y CLI).
+Monorepo unificado con 13 servidores MCP (Model Context Protocol) + Herramientas avanzadas de carrera Pathwise (Dashboard Gráfico y CLI).
 
 ## Servers
 
@@ -181,7 +181,37 @@ mcp-servers/
 └── pyproject.toml
 ```
 
+## Servers (todos activos)
+
+| Puerto | Server | Estado |
+|--------|--------|--------|
+| 8001 | BrowserMCP | activo |
+| 8002 | RouteMCP | activo |
+| 8003 | ScrapeMCP | activo |
+| 8004 | DocMCP | activo |
+| 8005 | LinkedInMCP | activo |
+| 8006 | Pathwise | activo |
+| 8007 | GitHubMCP | activo |
+| 8008 | FilesystemMCP | activo |
+| 8009 | MemoryMCP | activo |
+| 8010 | DatabaseMCP | activo |
+| 8011 | EmailMCP | activo |
+| 8012 | TaskTracker | activo |
+| 8013 | GraphifyMCP | activo |
+
+Inicio rápido local:
+```bash
+./start_all_mcp.sh
+```
+Requiere Python >= 3.11 y un virtualenv en `/tmp/mcp-venv`.
+
 ## Recent Improvements
+
+### 2026-07-19 — Graphify MCP Fix + Todos los servidores verificados
+- **GraphifyMCP reparado**: El wrapper `servers/graphify_wrapper.py` ahora usa `graphify.serve.serve_http()` en lugar del comando `graphify --mcp` inexistente. Expuesto vía Streamable HTTP en `:8013/mcp`.
+- **OpenCode config actualizado**: URL de GraphifyMCP cambiada de `/sse` a `/mcp` en `~/.config/opencode/opencode.jsonc`.
+- **13/13 MCP servidores funcionando**: Todos los servidores verificados y activos simultáneamente (Browser, Route, Scrape, Doc, LinkedIn, Pathwise, GitHub, Filesystem, Memory, Database, Email, TaskTracker, Graphify).
+- **start_all_mcp.sh**: Nuevo script que inicia los 13 servidores MCP con un solo comando.
 
 ### 2026-07-18 — Arquitectura y Testing Refactor
 - **God Objects Decomposed**: `api_server.py` (anteriormente de ~400 líneas) fue dividido en sub-módulos (`api/endpoints.py`, `api/schemas.py`, `api/ws.py`, `api/db.py`, `api/tasks.py`), reduciendo el acoplamiento y mejorando mantenibilidad.
